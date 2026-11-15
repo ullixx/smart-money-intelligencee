@@ -1,4 +1,4 @@
-const checks = [
+const checks = (env) => [
   {
     name: "DEX Screener",
     run: async () => {
@@ -15,7 +15,8 @@ const checks = [
   {
     name: "Solana RPC",
     run: async () => {
-      const r = await fetch("https://solana-rpc.publicnode.com", {
+      const endpoint = env?.SOLANA_RPC_URL || env?.SOLANA_RPC_FALLBACK_URL || "https://solana-rpc.publicnode.com";
+      const r = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getSlot" }),
@@ -24,14 +25,14 @@ const checks = [
       if (!r.ok) throw new Error("HTTP " + r.status);
       const data = await r.json();
       if (data.error || !Number.isFinite(data.result)) throw new Error(data.error?.message || "RPC meldet nicht ok");
-      return { slot: data.result };
+      return { slot: data.result, provider: env?.SOLANA_RPC_URL ? "Configured primary RPC (Helius/Custom)" : env?.SOLANA_RPC_FALLBACK_URL ? "Configured fallback RPC" : "PublicNode fallback" };
     }
   }
 ];
 
-export async function onRequestGet() {
+export async function onRequestGet({ env }) {
   const timestamp = new Date().toISOString();
-  const results = await Promise.all(checks.map(async check => {
+  const results = await Promise.all(checks(env).map(async check => {
     const started = Date.now();
     try {
       const detail = await check.run();
