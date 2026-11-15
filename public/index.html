@@ -275,7 +275,7 @@ document.getElementById("walletForm").addEventListener("submit",event=>{
  setActiveView("wallets");
  inspectWallet(address);
 });
-function setActiveView(view){document.querySelectorAll("section[data-view]").forEach(section=>{section.hidden=section.dataset.view!==view;});document.querySelectorAll(".navtab").forEach(tab=>{const active=tab.dataset.target===view;tab.classList.toggle("active",active);tab.setAttribute("aria-current",active?"page":"false");});window.scrollTo({top:0,behavior:"instant"});}
+function setActiveView(view){document.querySelectorAll("section[data-view]").forEach(section=>{section.hidden=section.dataset.view!==view;});document.querySelectorAll(".navtab").forEach(tab=>{const active=tab.dataset.target===view;tab.classList.toggle("active",active);tab.setAttribute("aria-current",active?"page":"false");});}
 document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
 setActiveView("discovery");
 loadDiscovery();
