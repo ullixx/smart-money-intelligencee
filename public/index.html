@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090d16">
+<title>Smart Money Intelligence</title>
+<style>
+:root{color-scheme:dark;--bg:#090d16;--panel:#111827;--panel2:#0d1421;--line:#263247;--text:#eef3fb;--muted:#91a0b7;--green:#55dda1;--blue:#77aaff;--red:#ff7185}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#172844 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:20px clamp(16px,4vw,44px);border-bottom:1px solid var(--line);background:#090d16cc;position:sticky;top:0;backdrop-filter:blur(16px);z-index:2}
+.brand{font-weight:800;letter-spacing:.02em}.brand span{color:var(--green)}.status{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:6px 10px}
+main{max-width:1200px;margin:auto;padding:30px clamp(16px,4vw,44px) 60px}.eyebrow{color:var(--green);font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:8px 0}.sub{color:var(--muted);max-width:680px;margin:10px 0 26px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.panel,.metric{background:linear-gradient(145deg,#141f30,#0e1522);border:1px solid var(--line);border-radius:16px;padding:17px}
+.metric small{color:var(--muted);display:block}.metric strong{font-size:24px;display:block;margin-top:8px}.metric em{font-style:normal;color:#f4c879;font-size:11px}
+.section{margin-top:26px}.sectionhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.sectionhead h2{font-size:17px;margin:0}.tag{font-size:11px;border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:4px 8px}
+.modules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.module{min-height:132px}.module .symbol{font-size:20px}.module h3{margin:12px 0 4px;font-size:15px}.module p{margin:0;color:var(--muted);font-size:12px}
+.truth{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.truth div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px}.truth b{display:block;margin-bottom:3px}
+.notice{margin-top:20px;padding:14px 16px;border:1px solid #6b5730;background:#2a2112;border-radius:12px;color:#f4d99d;font-size:13px}
+footer{margin-top:26px;color:var(--muted);font-size:11px}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.modules{grid-template-columns:repeat(2,1fr)}.truth{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:420px){.modules{grid-template-columns:1fr}.metric strong{font-size:21px}}
+</style>
+</head>
+<body>
+<header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status">● SYSTEM ONLINE · DEMO UI</div></header>
+<main>
+<div class="eyebrow">Solana intelligence terminal</div>
+<h1>Read the flow.<br>Understand the market.</h1>
+<p class="sub">Ein Analyse-Terminal für Solana-Meme-Coins. Wallet-Bewegungen, Marktaktivität und Risiken – mit klarer Kennzeichnung der Datenqualität.</p>
+<div class="grid">
+<div class="metric"><small>Tracked wallets</small><strong>—</strong><em>Quelle noch nicht verbunden</em></div>
+<div class="metric"><small>New tokens</small><strong>—</strong><em>Kein Live-Feed verbunden</em></div>
+<div class="metric"><small>Smart money flow</small><strong>—</strong><em>Keine Live-Daten</em></div>
+<div class="metric"><small>Market pulse</small><strong>—</strong><em>Wartet auf Datenquelle</em></div>
+</div>
+<section class="section">
+<div class="sectionhead"><h2>Intelligence modules</h2><span class="tag">CORE SYSTEM</span></div>
+<div class="modules">
+<div class="panel module"><div class="symbol">⌕</div><h3>Coin Discovery</h3><p>Neue Token finden und nach Alter, Liquidität und Aktivität bewerten.</p></div>
+<div class="panel module"><div class="symbol">◈</div><h3>Smart Money DNA</h3><p>Wallets, Käufe, Verkäufe und wiederkehrende Muster analysieren.</p></div>
+<div class="panel module"><div class="symbol">▥</div><h3>Market Intelligence</h3><p>Marktkapitalisierung, Volumen, Liquidität und Käufer/Verkäufer.</p></div>
+<div class="panel module"><div class="symbol">⌁</div><h3>FOMO Fusion</h3><p>Soziale Signale und Marktimpulse zusammenführen.</p></div>
+<div class="panel module"><div class="symbol">⛨</div><h3>Risk Engine</h3><p>Risiken, auffällige Wallets und mögliche Todeszeichen erkennen.</p></div>
+<div class="panel module"><div class="symbol">◎</div><h3>Developer Intelligence</h3><p>Entwickler-Wallets und Verbindungen sichtbar machen.</p></div>
+</div>
+</section>
+<section class="section panel">
+<div class="sectionhead"><h2>Data Truth Layer</h2><span class="tag">NO FAKE LIVE DATA</span></div>
+<div class="truth">
+<div><b style="color:var(--green)">LIVE</b>Aktuell von Quelle bestätigt</div>
+<div><b style="color:var(--blue)">HISTORICAL</b>Historische Daten</div>
+<div><b style="color:#f4c879">PARTIAL</b>Unvollständige Daten</div>
+<div><b style="color:var(--red)">UNAVAILABLE</b>Keine Daten verfügbar</div>
+</div>
+<div class="notice">Noch keine Marktdatenquelle verbunden. Deshalb werden Kennzahlen bewusst als nicht verfügbar angezeigt – es werden keine Werte erfunden.</div>
+</section>
+<footer>Smart Money Intelligence · Initial interface · Datenanbindung folgt</footer>
+</main>
+</body>
+</html>
