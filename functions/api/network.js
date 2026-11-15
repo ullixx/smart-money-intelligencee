@@ -12,10 +12,12 @@ export async function onRequestGet({request}) {
     try{
      const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
      if(!tx?.meta||tx.meta.err||!sig.blockTime)continue;
+     const keys=tx.transaction?.message?.accountKeys||[],walletIndex=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===wallet);
+     const solDelta=walletIndex>=0?((tx.meta.postBalances?.[walletIndex]||0)-(tx.meta.preBalances?.[walletIndex]||0))/1e9:null;
      const deltas=new Map();
      for(const b of tx.meta.preTokenBalances||[])if(b.owner===wallet)deltas.set(b.mint,{mint:b.mint,delta:-Number(b.uiTokenAmount?.uiAmountString||0)});
      for(const b of tx.meta.postTokenBalances||[])if(b.owner===wallet){const v=deltas.get(b.mint)||{mint:b.mint,delta:0};v.delta+=Number(b.uiTokenAmount?.uiAmountString||0);deltas.set(b.mint,v);}
-     for(const v of deltas.values())if(Number.isFinite(v.delta)&&v.delta>0)events.push({wallet,mint:v.mint,time:sig.blockTime,signature:sig.signature,amount:v.delta});
+     for(const v of deltas.values())if(Number.isFinite(v.delta)&&v.delta>0&&solDelta!==null&&solDelta<0)events.push({wallet,mint:v.mint,time:sig.blockTime,signature:sig.signature,amount:v.delta,solDelta});
     }catch(_){}
    }
   }
@@ -34,6 +36,6 @@ export async function onRequestGet({request}) {
   }
   clusters.sort((a,b)=>b.walletCount-a.walletCount||b.events-a.events);
   const overlap=[...byMint.entries()].map(([mint,ev])=>({mint,walletCount:new Set(ev.map(x=>x.wallet)).size})).filter(x=>x.walletCount>=2).sort((a,b)=>b.walletCount-a.walletCount);
-  return Response.json({status:"PARTIAL",source:"Solana public RPC",checkedAt:new Date().toISOString(),walletsChecked:wallets.length,transactionsScanned:wallets.length*8,positiveTokenMovements:events.length,clusters,sharedTokens:overlap,note:"Gemeinsame Token-Zugänge innerhalb von 30 Minuten sind nur zeitliche Überschneidungen. Transfers, Airdrops und unabhängige Käufe können gleich aussehen; keine Aussage über gemeinsame Kontrolle oder Insider-Verbindungen."},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({status:"PARTIAL",source:"Solana public RPC",checkedAt:new Date().toISOString(),walletsChecked:wallets.length,transactionsScanned:wallets.length*8,positiveTokenMovements:events.length,inferredBuyCandidates:events.length,clusters,sharedTokens:overlap,note:"Erfasst werden positive Token-Bewegungen bei gleichzeitigem SOL-Abgang. Das ist nur ein Kaufkandidat: Gebühren, Rent, Token-Transfers und Swap-Routen können die Zuordnung verfälschen. Zeitliche Überschneidungen beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",error:"Solana RPC nicht erreichbar oder rate-limited",detail:e.message,clusters:[]},{status:502});}
 }
