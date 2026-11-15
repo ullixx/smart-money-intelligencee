@@ -1,62 +1,209 @@
 <!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#090d16">
-<title>Smart Money Intelligence</title>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090d16"><title>Smart Money Intelligence</title>
 <style>
-:root{color-scheme:dark;--bg:#090d16;--panel:#111827;--panel2:#0d1421;--line:#263247;--text:#eef3fb;--muted:#91a0b7;--green:#55dda1;--blue:#77aaff;--red:#ff7185}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#172844 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}
-header{display:flex;justify-content:space-between;align-items:center;padding:20px clamp(16px,4vw,44px);border-bottom:1px solid var(--line);background:#090d16cc;position:sticky;top:0;backdrop-filter:blur(16px);z-index:2}
-.brand{font-weight:800;letter-spacing:.02em}.brand span{color:var(--green)}.status{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:6px 10px}
-main{max-width:1200px;margin:auto;padding:30px clamp(16px,4vw,44px) 60px}.eyebrow{color:var(--green);font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
-h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:8px 0}.sub{color:var(--muted);max-width:680px;margin:10px 0 26px}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.panel,.metric{background:linear-gradient(145deg,#141f30,#0e1522);border:1px solid var(--line);border-radius:16px;padding:17px}
-.metric small{color:var(--muted);display:block}.metric strong{font-size:24px;display:block;margin-top:8px}.metric em{font-style:normal;color:#f4c879;font-size:11px}
-.section{margin-top:26px}.sectionhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.sectionhead h2{font-size:17px;margin:0}.tag{font-size:11px;border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:4px 8px}
-.modules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.module{min-height:132px}.module .symbol{font-size:20px}.module h3{margin:12px 0 4px;font-size:15px}.module p{margin:0;color:var(--muted);font-size:12px}
-.truth{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.truth div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px}.truth b{display:block;margin-bottom:3px}
-.notice{margin-top:20px;padding:14px 16px;border:1px solid #6b5730;background:#2a2112;border-radius:12px;color:#f4d99d;font-size:13px}
-footer{margin-top:26px;color:var(--muted);font-size:11px}
-@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.modules{grid-template-columns:repeat(2,1fr)}.truth{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:420px){.modules{grid-template-columns:1fr}.metric strong{font-size:21px}}
-</style>
-</head>
-<body>
-<header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status">● SYSTEM ONLINE · DEMO UI</div></header>
-<main>
-<div class="eyebrow">Solana intelligence terminal</div>
-<h1>Read the flow.<br>Understand the market.</h1>
-<p class="sub">Ein Analyse-Terminal für Solana-Meme-Coins. Wallet-Bewegungen, Marktaktivität und Risiken – mit klarer Kennzeichnung der Datenqualität.</p>
-<div class="grid">
-<div class="metric"><small>Tracked wallets</small><strong>—</strong><em>Quelle noch nicht verbunden</em></div>
-<div class="metric"><small>New tokens</small><strong>—</strong><em>Kein Live-Feed verbunden</em></div>
-<div class="metric"><small>Smart money flow</small><strong>—</strong><em>Keine Live-Daten</em></div>
-<div class="metric"><small>Market pulse</small><strong>—</strong><em>Wartet auf Datenquelle</em></div>
-</div>
-<section class="section">
-<div class="sectionhead"><h2>Intelligence modules</h2><span class="tag">CORE SYSTEM</span></div>
-<div class="modules">
-<div class="panel module"><div class="symbol">⌕</div><h3>Coin Discovery</h3><p>Neue Token finden und nach Alter, Liquidität und Aktivität bewerten.</p></div>
-<div class="panel module"><div class="symbol">◈</div><h3>Smart Money DNA</h3><p>Wallets, Käufe, Verkäufe und wiederkehrende Muster analysieren.</p></div>
-<div class="panel module"><div class="symbol">▥</div><h3>Market Intelligence</h3><p>Marktkapitalisierung, Volumen, Liquidität und Käufer/Verkäufer.</p></div>
-<div class="panel module"><div class="symbol">⌁</div><h3>FOMO Fusion</h3><p>Soziale Signale und Marktimpulse zusammenführen.</p></div>
-<div class="panel module"><div class="symbol">⛨</div><h3>Risk Engine</h3><p>Risiken, auffällige Wallets und mögliche Todeszeichen erkennen.</p></div>
-<div class="panel module"><div class="symbol">◎</div><h3>Developer Intelligence</h3><p>Entwickler-Wallets und Verbindungen sichtbar machen.</p></div>
-</div>
-</section>
-<section class="section panel">
-<div class="sectionhead"><h2>Data Truth Layer</h2><span class="tag">NO FAKE LIVE DATA</span></div>
-<div class="truth">
-<div><b style="color:var(--green)">LIVE</b>Aktuell von Quelle bestätigt</div>
-<div><b style="color:var(--blue)">HISTORICAL</b>Historische Daten</div>
-<div><b style="color:#f4c879">PARTIAL</b>Unvollständige Daten</div>
-<div><b style="color:var(--red)">UNAVAILABLE</b>Keine Daten verfügbar</div>
-</div>
-<div class="notice">Noch keine Marktdatenquelle verbunden. Deshalb werden Kennzahlen bewusst als nicht verfügbar angezeigt – es werden keine Werte erfunden.</div>
-</section>
-<footer>Smart Money Intelligence · Initial interface · Datenanbindung folgt</footer>
-</main>
-</body>
-</html>
+:root{color-scheme:dark;--bg:#090d16;--panel:#111827;--line:#263247;--text:#eef3fb;--muted:#91a0b7;--green:#55dda1;--blue:#77aaff;--amber:#f4c879;--red:#ff7185}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#172844 0,transparent 38%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}header{display:flex;justify-content:space-between;align-items:center;padding:18px clamp(14px,4vw,42px);border-bottom:1px solid var(--line);background:#090d16ed;position:sticky;top:0;z-index:2;backdrop-filter:blur(16px)}.brand{font-weight:800}.brand span{color:var(--green)}.status,.tag,.state{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:5px 8px}main{max-width:1200px;margin:auto;padding:28px clamp(14px,4vw,42px) 55px}.eyebrow{color:var(--green);font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}h1{font-size:clamp(28px,5vw,42px);line-height:1.1;margin:8px 0}.sub{color:var(--muted);max-width:700px;margin:10px 0 25px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.panel,.metric{background:linear-gradient(145deg,#141f30,#0e1522);border:1px solid var(--line);border-radius:15px;padding:16px}.metric small{color:var(--muted);display:block}.metric strong{font-size:23px;display:block;margin-top:7px}.metric em{font-style:normal;color:var(--amber);font-size:11px}.section{margin-top:25px}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}.sectionhead h2{font-size:17px;margin:0}.modules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.module{min-height:126px}.symbol{font-size:20px;color:var(--green)}.module h3{margin:9px 0 4px;font-size:15px}.module p{margin:0;color:var(--muted);font-size:12px}.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:780px;text-align:left;font-size:12px}th{color:var(--muted);font-weight:600;padding:9px 8px;border-bottom:1px solid var(--line)}td{padding:10px 8px;border-bottom:1px solid #202b3d}td a{color:var(--green);text-decoration:none}.muted{color:var(--muted)}input{background:#090f1b;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:12px}button{background:var(--green);color:#07130e;border:0;border-radius:9px;padding:11px 16px;font-weight:800;cursor:pointer}.truth{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.truth div{background:#0d1421;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px}.truth b{display:block;margin-bottom:3px}.notice{margin-top:14px;padding:12px 14px;border:1px solid #6b5730;background:#2a2112;border-radius:11px;color:#f4d99d;font-size:12px}footer{margin-top:24px;color:var(--muted);font-size:11px}@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.modules{grid-template-columns:repeat(2,1fr)}.truth{grid-template-columns:repeat(2,1fr)}}@media(max-width:420px){.modules{grid-template-columns:1fr}.metric strong{font-size:20px}}
+</style></head><body>
+<header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status" id="connection">● API WIRD GEPRÜFT</div></header>
+<main><div class="eyebrow">Solana intelligence terminal</div><h1>Read the flow.<br>Understand the market.</h1><p class="sub">Analyse-Terminal für Solana-Meme-Coins. Marktaktivität und Wallet-Bewegungen mit klarer Kennzeichnung der Datenqualität.</p>
+<div class="grid"><div class="metric"><small>Tracked wallets</small><strong id="walletCount">0</strong><em>Im Browser gespeichert</em></div><div class="metric"><small>Discovery tokens</small><strong id="tokenCount">—</strong><em id="tokenState">Wird geladen</em></div><div class="metric"><small>Smart money flow</small><strong>—</strong><em>Noch keine Klassifizierung</em></div><div class="metric"><small>Market pulse</small><strong>—</strong><em>Kommt nach Datenvalidierung</em></div></div>
+<section class="section"><div class="sectionhead"><h2>Coin Discovery · Solana</h2><span class="tag" id="feedStatus">WIRD GELADEN</span></div><div class="panel"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:13px"><input id="coinSearch" type="search" placeholder="Name, Symbol oder Mint suchen" aria-label="Token suchen"><select id="sortCoins" aria-label="Sortierung" style="background:#090f1b;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px"><option value="liquidity">Liquidität ↓</option><option value="volume">Volumen 24h ↓</option><option value="buys">Käufe 24h ↓</option><option value="age">Neueste zuerst</option><option value="marketcap">Market Cap ↓</option></select><select id="minLiquidity" aria-label="Mindestliquidität" style="background:#090f1b;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px"><option value="0">Jede Liquidität</option><option value="1000">Mind. $1.000</option><option value="5000">Mind. $5.000</option><option value="10000">Mind. $10.000</option><option value="50000">Mind. $50.000</option></select><select id="minVolume" aria-label="Mindestvolumen" style="background:#090f1b;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px"><option value="0">Jedes Volumen</option><option value="1000">Mind. $1.000</option><option value="10000">Mind. $10.000</option><option value="50000">Mind. $50.000</option><option value="100000">Mind. $100.000</option></select></div><div id="coinFilterSummary" class="muted" style="font-size:11px;margin-bottom:10px">Filter werden geladen …</div><div class="tablewrap"><table><thead><tr><th>Token</th><th>Preis USD</th><th>Liquidität</th><th>Volumen 24h</th><th>Market Cap / FDV</th><th>Pair-Alter</th><th>Käufe / Verkäufe</th><th>Risiko</th><th>Warnsignale</th><th>Status</th></tr></thead><tbody id="tokenRows"><tr><td colspan="10" class="muted">Lade Marktdaten …</td></tr></tbody></table></div><div id="securityResult" class="muted" style="font-size:12px;margin-top:12px"></div><div class="muted" id="feedNote" style="font-size:11px;margin-top:12px">Quelle und Datenzeit werden nach Abruf angezeigt.</div></div></section>
+<section class="section"><div class="sectionhead"><h2>Smart Money DNA · Wallet Inspector</h2><span class="tag">SOLANA RPC · PARTIAL</span></div><div class="panel"><p class="muted" style="font-size:12px;margin-top:0">Wallet-Adressen speichern und die letzten Transaktionen prüfen. Rohdaten statt erfundener Smart-Money-Scores.</p><form id="walletForm" style="display:flex;gap:8px;flex-wrap:wrap"><input id="walletAddress" autocomplete="off" spellcheck="false" placeholder="Solana Wallet-Adresse" style="flex:1;min-width:220px"><button type="submit">Wallet analysieren</button></form><div id="watchlist" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px"></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px"><button type="button" id="networkButton" style="background:#263a56;color:var(--text)">Wallet-Netzwerk analysieren</button><span class="muted" style="font-size:11px">Vergleicht bis zu 5 gespeicherte Wallets</span></div><div id="networkResult" class="muted" style="font-size:12px;margin-top:12px"></div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px"><button type="button" id="rankingButton" style="background:#263a56;color:var(--text)">Smart Money Ranking berechnen</button><span class="muted" style="font-size:11px">Vergleicht bis zu 10 gespeicherte Wallets</span></div><div id="rankingResult" class="muted" style="font-size:12px;margin-top:12px"></div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px"><button type="button" id="fomoButton" style="background:#263a56;color:var(--text)">FOMO Fusion analysieren</button><span class="muted" style="font-size:11px">Marktimpuls · Social-Daten separat gekennzeichnet</span></div><div id="fomoResult" class="muted" style="font-size:12px;margin-top:12px"></div>
+<div style="border-top:1px solid var(--line);margin-top:16px;padding-top:14px"><b>Entry Engine · Watchlist Gate</b><p class="muted" style="font-size:11px">Prüft Mindestliquidität, Marktaktivität, Kauf-/Verkaufsverhältnis und Freeze Authority. Gibt keine Kaufempfehlung.</p><form id="entryForm" style="display:flex;gap:8px;flex-wrap:wrap"><input id="entryAddress" placeholder="Token Mint-Adresse" autocomplete="off" spellcheck="false" style="flex:1;min-width:220px"><button type="submit">Setup prüfen</button></form><div id="entryResult" class="muted" style="font-size:12px;margin-top:12px"></div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px"><button type="button" id="performanceButton" style="background:#263a56;color:var(--text)">Historische Performance berechnen</button><span class="muted" style="font-size:11px">Stundenkerzen · FIFO-Näherung</span></div><div id="performanceResult" class="muted" style="font-size:12px;margin-top:12px"></div><div id="walletResult" class="muted" style="font-size:12px;margin-top:12px">Noch keine Wallet analysiert.</div></div></section>
+
+<section class="section"><div class="sectionhead"><h2>Developer Intelligence · Mint Trace</h2><span class="tag">SOLANA RPC · PARTIAL</span></div><div class="panel"><p class="muted" style="font-size:12px;margin-top:0">Prüft die älteste verfügbare Transaktion der Mint-Adresse und zeigt den Fee-Payer als möglichen Ersteller-Kandidaten. Keine Identitäts- oder Eigentümerbestätigung.</p><form id="developerForm" style="display:flex;gap:8px;flex-wrap:wrap"><input id="developerAddress" autocomplete="off" spellcheck="false" placeholder="Token Mint-Adresse" style="flex:1;min-width:220px"><button type="submit">Mint zurückverfolgen</button></form><div id="developerResult" class="muted" style="font-size:12px;margin-top:12px">Noch keine Mint geprüft.</div></div></section>
+<section class="section"><div class="sectionhead"><h2>Intelligence modules</h2><span class="tag">CORE SYSTEM</span></div><div class="modules"><div class="panel module"><div class="symbol">⌕</div><h3>Coin Discovery</h3><p>Token finden und nach Liquidität und Marktaktivität bewerten.</p></div><div class="panel module"><div class="symbol">◈</div><h3>Smart Money DNA</h3><p>Wallets, Käufe, Verkäufe und wiederkehrende Muster analysieren.</p></div><div class="panel module"><div class="symbol">▥</div><h3>Market Intelligence</h3><p>Marktkapitalisierung, Volumen, Liquidität und Transaktionen.</p></div><div class="panel module"><div class="symbol">⌁</div><h3>FOMO Fusion</h3><p>Soziale Signale und Marktimpulse zusammenführen.</p></div><div class="panel module"><div class="symbol">⛨</div><h3>Risk Engine</h3><p>Risiken, auffällige Wallets und mögliche Todeszeichen erkennen.</p></div><div class="panel module"><div class="symbol">◎</div><h3>Developer Intelligence</h3><p>Entwickler-Wallets und Verbindungen sichtbar machen.</p></div></div></section>
+<section class="section panel"><div class="sectionhead"><h2>Data Truth Layer</h2><span class="tag">NO FAKE LIVE DATA</span></div><div class="truth"><div><b style="color:var(--green)">LIVE</b>Aktuell von Quelle bestätigt</div><div><b style="color:var(--blue)">HISTORICAL</b>Historische Daten</div><div><b style="color:var(--amber)">PARTIAL</b>Unvollständige Daten</div><div><b style="color:var(--red)">UNAVAILABLE</b>Keine Daten verfügbar</div></div><div class="notice">Discovery nutzt DEX-Screener-Profil- und Boost-Listen. Das ist keine vollständige Liste aller neu erstellten Token. Wallet-Daten sind rohe RPC-Transaktionen und noch keine sichere Swap-/PnL-Auswertung.</div><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px"><b style="font-size:13px">Quellen- und API-Prüfung</b><button type="button" id="healthButton" style="background:#263a56;color:var(--text)">Verbindungen prüfen</button></div><div id="healthResult" class="muted" style="font-size:12px;margin-top:9px">Prüfung wird gestartet …</div></section>
+<footer>Smart Money Intelligence · DEX Screener + Solana Public RPC · automatische Aktualisierung alle 60 Sekunden</footer></main>
+<script>
+const fmt=v=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toLocaleString("de-DE",{maximumFractionDigits:6});
+const money=v=>v==null?"—":"$"+Number(v).toLocaleString("en-US",{maximumFractionDigits:0});
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let discoveryTokens=[];
+function renderDiscovery(){
+ const rows=document.getElementById("tokenRows");
+ if(!rows)return;
+ const q=(document.getElementById("coinSearch")?.value||"").trim().toLowerCase();
+ const minL=Number(document.getElementById("minLiquidity")?.value||0);
+ const minV=Number(document.getElementById("minVolume")?.value||0);
+ const sort=document.getElementById("sortCoins")?.value||"liquidity";
+ const filtered=discoveryTokens.filter(t=>{
+  const text=[t.name,t.symbol,t.address].join(" ").toLowerCase();
+  return (!q||text.includes(q))&&(Number(t.liquidityUsd)||0)>=minL&&(Number(t.volume24h)||0)>=minV;
+ });
+ const value=t=>({liquidity:t.liquidityUsd,volume:t.volume24h,buys:t.buys24h,age:t.pairCreatedAt,marketcap:t.marketCapUsd}[sort]);
+ filtered.sort((a,b)=>{
+  const av=value(a),bv=value(b);
+  if(sort==="age")return (Number(bv)||0)-(Number(av)||0);
+  return (Number(bv)||0)-(Number(av)||0);
+ });
+ document.getElementById("coinFilterSummary").textContent=filtered.length+" von "+discoveryTokens.length+" Token · Filter wirken auf die aktuell geladenen Treffer";
+ rows.innerHTML=filtered.length?filtered.map(t=>'<tr><td><a target="_blank" rel="noopener" href="'+esc(t.url||("https://solscan.io/token/"+t.address))+'"><b>'+esc(t.name||"Unbekannt")+'</b> ↗</a><br><span class="muted">'+esc(t.symbol||((t.address||"").slice(0,8)+"…"))+'</span></td><td>'+fmt(t.priceUsd)+'</td><td>'+money(t.liquidityUsd)+'</td><td>'+money(t.volume24h)+'</td><td>'+(t.marketCapUsd!==null&&t.marketCapUsd!==undefined?'<span>MC '+money(t.marketCapUsd)+'</span>':'<span class="muted">MC —</span>')+'<br><span class="muted">FDV '+money(t.fdvUsd)+'</span>'+'</td><td>'+(t.pairCreatedAt?Math.max(0,Math.floor((Date.now()-t.pairCreatedAt)/3600000))+" h":"—")+'</td><td>'+(t.buys24h??"—")+' / '+(t.sells24h??"—")+'</td><td><b style="color:'+(t.riskLevel==="HIGH"?"var(--red)":t.riskLevel==="ELEVATED"?"var(--amber)":"var(--green)")+'">'+(t.riskScore??"—")+'/100</b><br><span class="muted">'+(t.riskLevel==="HIGH"?"HOCH":t.riskLevel==="ELEVATED"?"ERHÖHT":"NIEDRIG")+'</span><br><button type="button" data-security="'+esc(t.address)+'" style="margin-top:6px;padding:6px 8px;font-size:10px;background:#263a56;color:var(--text)">Mint prüfen</button></td><td>'+(t.flags?.length?t.flags.map(esc).join("<br>"):"—")+'</td><td><span class="state">'+(t.hasMarketPair?"LIVE":"PARTIAL")+'</span></td></tr>').join(""):'<tr><td colspan="10" class="muted">Keine Token entsprechen den Filtern.</td></tr>';
+}
+async function inspectTokenSecurity(address){
+ const out=document.getElementById("securityResult");out.textContent="Prüfe Mint Authority, Freeze Authority und größte Token-Accounts …";
+ try{
+  const r=await fetch("/api/token-security?address="+encodeURIComponent(address),{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"Sicherheitsprüfung fehlgeschlagen");
+  const authority=active=>active?'<b style="color:var(--red)">AKTIV</b>':'<b style="color:var(--green)">NICHT AKTIV</b>';
+  out.innerHTML='<div class="panel" style="padding:13px"><div class="sectionhead"><b>Mint-Sicherheitsprüfung · '+esc(address.slice(0,8)+"…"+address.slice(-6))+'</b><span class="tag">'+d.status+'</span></div><div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:9px 0"><div><span class="muted">Mint Authority</span><br>'+authority(d.mintAuthorityActive)+'</div><div><span class="muted">Freeze Authority</span><br>'+authority(d.freezeAuthorityActive)+'</div><div><span class="muted">Dezimalstellen</span><br>'+d.decimals+'</div><div><span class="muted">Top-10 Token-Account-Anteil</span><br>'+(d.top10TokenAccountShare==null?"—":(d.top10TokenAccountShare*100).toFixed(2)+"%")+'</div><div><span class="muted">Top-10 Owner-Anteil (sichtbare Top-20 Accounts)</span><br>'+(d.top10OwnerShare==null?"—":(d.top10OwnerShare*100).toFixed(2)+"%")+'</div><div><span class="muted">Erkannte Owner in Top-20</span><br>'+(d.largestOwners?.length??"—")+'</div></div><div class="muted" style="font-size:11px">'+esc(d.note||"")+'</div><div class="muted" style="font-size:10px;margin-top:6px">Geprüft: '+new Date(d.checkedAt).toLocaleString("de-DE")+'</div></div>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("tokenRows").addEventListener("click",e=>{const b=e.target.closest("[data-security]");if(b)inspectTokenSecurity(b.dataset.security);});
+["coinSearch","sortCoins","minLiquidity","minVolume"].forEach(id=>document.getElementById(id).addEventListener(id==="coinSearch"?"input":"change",renderDiscovery));
+async function loadDiscovery(){const badge=document.getElementById("connection"),state=document.getElementById("feedStatus"),note=document.getElementById("feedNote");try{const r=await fetch("/api/discovery",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"API-Fehler");discoveryTokens=Array.isArray(d.tokens)?d.tokens:[];badge.textContent="● API VERBUNDEN";state.textContent=d.status+" · "+new Date(d.timestamp).toLocaleTimeString("de-DE");document.getElementById("tokenCount").textContent=discoveryTokens.length;document.getElementById("tokenState").textContent="DEX Screener · "+d.status;renderDiscovery();note.textContent=(d.note||"")+" Quelle: "+d.source+". Abruf: "+new Date(d.timestamp).toLocaleString("de-DE");}catch(e){badge.textContent="● API NICHT ERREICHBAR";state.textContent="UNAVAILABLE";document.getElementById("tokenState").textContent="Datenquelle nicht erreichbar";document.getElementById("tokenRows").innerHTML='<tr><td colspan="10" style="color:var(--red);padding:14px">Keine Live-Daten verfügbar. API-Endpunkt oder Deployment prüfen.</td></tr>';note.textContent=e.message;}}
+async function checkHealth(){
+ const out=document.getElementById("healthResult"),button=document.getElementById("healthButton");
+ if(!out)return;
+ if(button)button.disabled=true;
+ out.textContent="Prüfe DEX Screener und Solana RPC …";
+ try{
+  const r=await fetch("/api/health",{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.error||"Health-Prüfung fehlgeschlagen");
+  out.innerHTML=(d.checks||[]).map(x=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)"><span><b>'+esc(x.name)+'</b><br><span class="muted">'+(x.status==="LIVE"?"Erreichbar":"Nicht erreichbar")+(x.error?" · "+esc(x.error):"")+'</span></span><span style="text-align:right;color:'+(x.status==="LIVE"?"var(--green)":"var(--red)")+'">'+x.status+'<br><span class="muted">'+x.latencyMs+' ms</span></span></div>').join("")+'<div class="muted" style="font-size:10px;margin-top:7px">Geprüft: '+new Date(d.timestamp).toLocaleString("de-DE")+' · Ein Verbindungstest bestätigt nicht die Vollständigkeit der Marktdaten.</div>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+ finally{if(button)button.disabled=false;}
+}
+document.getElementById("healthButton").addEventListener("click",checkHealth);
+
+async function inspectDeveloper(address){
+ const out=document.getElementById("developerResult");out.textContent="Suche die älteste verfügbare Mint-Transaktion …";
+ try{
+  const r=await fetch("/api/developer?address="+encodeURIComponent(address),{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"Developer-Prüfung fehlgeschlagen");
+  const tx=d.firstVisibleTransaction;
+  const row=(label,value)=>'<div style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="muted">'+label+'</span><br><b style="overflow-wrap:anywhere">'+(value||"Nicht verfügbar")+'</b></div>';
+  out.innerHTML='<div class="panel" style="padding:13px"><div class="sectionhead"><b>Mint Trace</b><span class="tag">'+esc(d.status)+'</span></div>'+
+   row("Fee-Payer-Kandidat (erste verfügbare Transaktion)",tx?.feePayerCandidate)+
+   row("Initialize-Mint Authority",tx?.initializeMintAuthority)+
+   row("Mint Authority aktuell",d.mintAuthority)+
+   row("Freeze Authority aktuell",d.freezeAuthority)+
+   row("Zeitpunkt der ältesten verfügbaren Transaktion",tx?.blockTime?new Date(tx.blockTime*1000).toLocaleString("de-DE"):"Nicht verfügbar")+
+   row("Signaturen geprüft",d.signaturesChecked??"—")+
+   (tx?.explorerUrl?'<p><a target="_blank" rel="noopener" href="'+esc(tx.explorerUrl)+'">Erste sichtbare Transaktion in Solscan öffnen ↗</a></p>':"")+
+   '<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p></div>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("developerForm").addEventListener("submit",e=>{e.preventDefault();const a=document.getElementById("developerAddress").value.trim();if(a)inspectDeveloper(a);});
+
+const KEY="smi_wallet_watchlist_v1";
+function getWallets(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch{return []}}
+function renderWatchlist(){const list=getWallets();document.getElementById("walletCount").textContent=list.length;document.getElementById("watchlist").innerHTML=list.map(a=>'<button type="button" data-wallet="'+esc(a)+'" style="background:#18263a;color:var(--text);border:1px solid var(--line);padding:7px 9px">'+esc(a.slice(0,5)+"…"+a.slice(-5))+' · prüfen</button><button type="button" data-remove="'+esc(a)+'" style="background:#301923;color:#ff9aaa;padding:7px 9px">×</button>').join("");}
+let lastWalletReport=null;
+const HISTORY_KEY="smi_wallet_history_v1";
+function saveWalletSnapshot(d){
+ const all=JSON.parse(localStorage.getItem(HISTORY_KEY)||"{}"),list=all[d.address]||[],s=d.summary||{};
+ const snap={checkedAt:d.checkedAt,buys:s.inferredBuys||0,sells:s.inferredSells||0,tokens:s.distinctTokens||0,netSol:s.netSol||0};
+ const previous=list.length?list[list.length-1]:null;list.push(snap);all[d.address]=list.slice(-20);localStorage.setItem(HISTORY_KEY,JSON.stringify(all));
+ return {previous,count:list.length,deltaBuys:previous?snap.buys-previous.buys:null,deltaSells:previous?snap.sells-previous.sells:null,deltaNetSol:previous?snap.netSol-previous.netSol:null};
+}
+function exportWalletCSV(){
+ if(!lastWalletReport)return;
+ const d=lastWalletReport,rows=[["type","mint","net_amount","received","sent","transactions","first_seen","last_seen"]];
+ for(const t of d.tokenLedger||[])rows.push(["token",t.mint,t.netAmount,t.received,t.sent,t.transactions,t.firstSeen,t.lastSeen]);
+ for(const t of d.transactions||[])rows.push(["transaction",t.signature,"","","",t.classification,t.time,t.solDelta]);
+ const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(";")).join("\\r\\n");
+ const blob=new Blob(["\\ufeff"+csv],{type:"text/csv;charset=utf-8"}),link=document.createElement("a"),url=URL.createObjectURL(blob);
+ link.href=url;link.download="wallet-report-"+d.address.slice(0,8)+".csv";link.click();URL.revokeObjectURL(url);
+}
+async function inspectWallet(address){
+ const out=document.getElementById("walletResult");out.textContent="Lade Wallet-Aktivität …";
+ try{
+  const r=await fetch("/api/wallet?address="+encodeURIComponent(address),{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Wallet-Abfrage fehlgeschlagen");lastWalletReport=d;
+  const tx=d.transactions||[],s=d.summary||{},p=d.activityProfile||{},ledger=d.tokenLedger||[],history=saveWalletSnapshot(d);
+  const stat=(label,value)=>'<div class="metric" style="padding:10px"><small>'+label+'</small><strong style="font-size:19px">'+value+'</strong></div>';
+  const type=t=>t.classification==="BUY_INFERRED"?'<span style="color:var(--green)">BUY · vermutet</span>':t.classification==="SELL_INFERRED"?'<span style="color:var(--red)">SELL · vermutet</span>':t.classification==="TOKEN_MOVEMENT"?"Token-Bewegung":t.classification==="SWAP_CANDIDATE"?'<span style="color:var(--blue)">Swap-Kandidat · unbestätigt</span>':"Unklar";
+  out.innerHTML='<div style="margin:8px 0 12px"><b style="color:var(--amber)">'+d.status+'</b> · '+tx.length+' Transaktionen · '+esc(d.source)+' · Abdeckung '+(d.coverage??'—')+'% · übersprungen '+(d.skippedTransactions??0)+'</div>'+
+   '<div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0">'+stat("Vermutete BUYs",s.inferredBuys??"—")+stat("Vermutete SELLs",s.inferredSells??"—")+stat("Token berührt",s.distinctTokens??"—")+stat("Swap-Kandidaten",s.swapCandidates??0)+stat("Netto SOL",fmt(s.netSol))+'</div>'+
+   '<div class="panel" style="margin:10px 0;padding:12px"><b>Lokaler Prüfverlauf: '+history.count+' Messpunkte</b><div class="muted" style="font-size:11px;margin-top:4px">Seit letzter Prüfung: BUY '+(history.deltaBuys===null?"—":(history.deltaBuys>=0?"+":"")+history.deltaBuys)+' · SELL '+(history.deltaSells===null?"—":(history.deltaSells>=0?"+":"")+history.deltaSells)+' · Netto-SOL-Änderung '+(history.deltaNetSol===null?"—":fmt(history.deltaNetSol))+'</div></div>'+
+   '<div class="panel" style="margin:10px 0;padding:12px"><b>Aktivitätsprofil: '+esc(p.label||"Nicht verfügbar")+'</b><div style="height:7px;background:#263247;border-radius:9px;margin:8px 0;overflow:hidden"><div style="height:100%;width:'+Math.max(0,Math.min(100,Number(p.score)||0))+'%;background:var(--green)"></div></div><span class="muted" style="font-size:11px">Score '+(p.score??"—")+'/100 · '+esc(p.method||"")+'</span></div>'+
+   '<div class="sectionhead" style="margin-top:18px"><h3 style="font-size:14px;margin:0">Token-Ledger</h3><button type="button" id="exportWalletCSV" style="padding:7px 10px">CSV exportieren</button></div>'+
+   (ledger.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>Netto-Menge</th><th>Erhalten</th><th>Gesendet</th><th>Bewegungen</th><th>Explorer</th></tr></thead><tbody>'+ledger.map(t=>'<tr><td>'+esc(t.mint.slice(0,7)+"…"+t.mint.slice(-6))+'</td><td>'+fmt(t.netAmount)+'</td><td>'+fmt(t.received)+'</td><td>'+fmt(t.sent)+'</td><td>'+t.transactions+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(t.mint)+'">Solscan ↗</a></td></tr>').join("")+'</tbody></table></div>':'<p class="muted">Kein Token-Ledger für die geprüften Transaktionen.</p>')+
+   '<h3 style="font-size:14px;margin-top:18px">Letzte Transaktionen</h3>'+
+   (tx.length?'<div class="tablewrap"><table><thead><tr><th>Zeit</th><th>Einordnung</th><th>SOL netto</th><th>Signatur</th></tr></thead><tbody>'+tx.map(t=>'<tr><td>'+(t.time?new Date(t.time).toLocaleString("de-DE"):"—")+'</td><td>'+type(t)+'<br><span class="muted">'+esc(t.classificationBasis||"")+'</span></td><td>'+(t.solDelta==null?"—":fmt(t.solDelta)+" SOL")+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/tx/'+encodeURIComponent(t.signature)+'">Solscan ↗</a></td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Transaktionen gefunden.')+
+   '<p class="muted" style="font-size:11px;margin-bottom:0">'+esc(d.note||"")+' · Abruf: '+new Date(d.checkedAt).toLocaleString("de-DE")+'</p>';
+  document.getElementById("exportWalletCSV").addEventListener("click",exportWalletCSV);
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+async function inspectPerformance(){
+ const list=getWallets(),out=document.getElementById("performanceResult");
+ if(!list.length){out.textContent="Bitte zuerst eine Wallet speichern.";return;}
+ out.textContent="Lade Transaktionen und historische Stundenkurse …";
+ try{
+  const r=await fetch("/api/performance?address="+encodeURIComponent(list[0]),{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Performance-Abfrage fehlgeschlagen");
+  const s=d.summary||{},pct=s.tokenLevelPositiveShare==null?"—":(s.tokenLevelPositiveShare*100).toFixed(1)+"%";
+  out.innerHTML='<p><b style="color:var(--amber)">'+d.status+'</b> · '+esc(d.source)+' · '+d.events+' Bewegungen · Abdeckung '+(d.coverage??'—')+'% · übersprungen '+(d.skippedTransactions??0)+' · nicht klassifiziert '+(d.unclassifiedTransactions??0)+'</p><div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0"><div class="metric"><small>Token geprüft</small><strong>'+s.tokens+'</strong></div><div class="metric"><small>Historisch bepreist</small><strong>'+s.pricedEvents+'</strong></div><div class="metric"><small>Unbepreist</small><strong>'+s.unpricedEvents+'</strong></div><div class="metric"><small>Positive Token-PnL</small><strong>'+pct+'</strong></div></div>'+
+  (d.tokenResults?.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>BUYs</th><th>SELLs</th><th>Geschlossene Menge</th><th>Geschätzter FIFO-PnL</th><th>Kursquelle</th></tr></thead><tbody>'+d.tokenResults.map(t=>'<tr><td>'+esc(t.mint.slice(0,7)+"…"+t.mint.slice(-6))+(t.poolUrl?'<br><a target="_blank" rel="noopener" href="'+esc(t.poolUrl)+'">Pool ↗</a>':"")+'</td><td>'+t.buys+'</td><td>'+t.sells+'</td><td>'+fmt(t.matchedTokenAmount)+'</td><td>'+(t.estimatedRealizedPnlUsd==null?"—":(t.estimatedRealizedPnlUsd>=0?"+":"")+"$"+fmt(t.estimatedRealizedPnlUsd))+'</td><td>'+esc(t.priceSource)+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Token-Bewegungen gefunden.')+'<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("performanceButton").addEventListener("click",inspectPerformance);
+async function inspectNetwork(){
+ const list=getWallets().slice(0,5),out=document.getElementById("networkResult");
+ if(list.length<2){out.textContent="Bitte mindestens zwei Wallets speichern.";return;}
+ out.textContent="Vergleiche Wallets und letzte Token-Bewegungen …";
+ try{
+  const r=await fetch("/api/network?wallets="+encodeURIComponent(list.join(",")),{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Netzwerkanalyse fehlgeschlagen");
+  const clusters=d.clusters||[],shared=d.sharedTokens||[];
+  out.innerHTML='<p><b style="color:var(--amber)">'+d.status+'</b> · '+d.walletsChecked+' Wallets · '+(d.transactionsAnalysed??0)+' dekodiert / '+(d.transactionsRequested??0)+' angefragt · Abdeckung '+(d.coverage??'—')+'% · übersprungen '+(d.skippedTransactions??0)+' · '+d.positiveTokenMovements+' Kaufkandidaten</p>'+
+   '<h3 style="font-size:14px">Zeitliche Überschneidungen</h3>'+
+   (clusters.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>Wallets</th><th>Zeitfenster</th><th>Ereignisse</th><th>Token-Explorer</th></tr></thead><tbody>'+clusters.map(c=>'<tr><td>'+esc(c.mint.slice(0,7)+"…"+c.mint.slice(-6))+'</td><td>'+c.walletCount+'<br><span class="muted">'+c.wallets.map(esc).join(", ")+'</span></td><td>'+new Date(c.firstSeen).toLocaleString("de-DE")+'<br><span class="muted">'+c.windowMinutes+' Min.</span></td><td>'+c.events+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(c.mint)+'">Solscan ↗</a></td></tr>').join("")+'</tbody></table></div>':'Keine zeitlichen Überschneidungen in den geprüften Transaktionen gefunden.')+
+   '<h3 style="font-size:14px;margin-top:18px">Gemeinsam berührte Token</h3>'+
+   (shared.length?shared.map(x=>'<div style="padding:8px 0;border-top:1px solid var(--line)">'+x.walletCount+' Wallets · '+esc(x.mint.slice(0,8)+"…"+x.mint.slice(-6))+' · <a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(x.mint)+'">öffnen</a></div>').join(""):'Keine gemeinsamen Token in den geprüften Daten.')+
+   '<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("networkButton").addEventListener("click",inspectNetwork);
+
+async function inspectRanking(){
+ const list=getWallets().slice(0,10),out=document.getElementById("rankingResult");
+ if(!list.length){out.textContent="Bitte zuerst Wallets speichern.";return;}
+ out.textContent="Analysiere bis zu 15 aktuelle Transaktionen je Wallet …";
+ try{
+  const r=await fetch("/api/ranking?wallets="+encodeURIComponent(list.join(",")),{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"Ranking fehlgeschlagen");
+  const rows=d.ranked||[];
+  out.innerHTML='<p><b style="color:var(--amber)">'+esc(d.status)+'</b> · '+d.walletsChecked+' Wallets · '+esc(d.source)+'</p>'+
+   (rows.length?'<div class="tablewrap"><table><thead><tr><th>Rang</th><th>Wallet</th><th>Aktivitätsscore</th><th>BUY / SELL</th><th>Verschiedene BUY-Token</th><th>Wiederholte Token</th><th>Abdeckung</th><th>Status</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+(x.rank??"—")+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(x.address)+'">'+esc(x.address.slice(0,6)+"…"+x.address.slice(-6))+' ↗</a></td><td>'+(x.score==null?"—":'<b>'+x.score+'/100</b>')+'</td><td>'+(x.buys??"—")+' / '+(x.sells??"—")+'</td><td>'+(x.buyMints??"—")+'</td><td>'+(x.repeatedMints??"—")+'</td><td>'+(x.coverage??"—")+'%</td><td>'+esc(x.status)+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Wallets.')+
+   '<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("rankingButton").addEventListener("click",inspectRanking);
+
+
+async function inspectFomo(){
+ const out=document.getElementById("fomoResult");out.textContent="Lade Marktimpuls …";
+ try{
+  const r=await fetch("/api/fomo",{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"FOMO Fusion fehlgeschlagen");
+  const tokens=d.tokens||[];
+  let rows="";
+  for(const t of tokens.slice(0,15)){
+   const name=esc(t.name||t.symbol||t.address.slice(0,8));
+   const pressure=t.buyPressure==null?"—":(t.buyPressure*100).toFixed(1)+"%";
+   const ratio=t.volumeLiquidity==null?"—":t.volumeLiquidity.toFixed(2)+"x";
+   rows+="<tr><td>"+name+"</td><td>"+(t.score??"—")+"/100</td><td>"+pressure+"</td><td>"+ratio+"</td><td>$"+fmt(t.liquidityUsd)+"</td><td>"+t.buys24h+" / "+t.sells24h+"</td><td><a target='_blank' rel='noopener' href='"+esc(t.url||("https://solscan.io/token/"+t.address))+"'>öffnen</a></td></tr>";
+  }
+  out.innerHTML="<p><b>"+esc(d.status)+"</b> · DEX Screener · Social: <b style='color:var(--red)'>UNAVAILABLE</b></p>"+
+   (rows?"<div class='tablewrap'><table><thead><tr><th>Token</th><th>Market Pulse</th><th>Buy-Anteil</th><th>Volumen/Liquidität</th><th>Liquidität</th><th>BUY/SELL</th><th>Explorer</th></tr></thead><tbody>"+rows+"</tbody></table></div>":"Keine Marktpaare verfügbar.")+
+   "<p class='muted' style='font-size:11px'>"+esc(d.method||"")+"<br>"+esc(d.note||"")+"<br>"+esc(d.social?.note||"")+"</p>";
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("fomoButton").addEventListener("click",inspectFomo);
+
+async function inspectEntry(address){
+ const out=document.getElementById("entryResult");out.textContent="Prüfe Marktbedingungen und Mint-Sicherheit …";
+ try{
+  const r=await fetch("/api/entry?address="+encodeURIComponent(address),{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"Entry-Prüfung fehlgeschlagen");
+  const m=d.market||{},decision=d.decision||d.status;
+  out.innerHTML="<div class='panel' style='padding:13px'><div class='sectionhead'><b>"+esc(decision)+"</b><span class='tag'>Score "+(d.score??"—")+"/100</span></div>"+
+   "<div class='grid' style='grid-template-columns:repeat(2,minmax(0,1fr))'><div><span class='muted'>Liquidität</span><br>$"+fmt(m.liquidityUsd)+"</div><div><span class='muted'>Volumen 24h</span><br>$"+fmt(m.volume24h)+"</div><div><span class='muted'>Käufe / Verkäufe</span><br>"+(m.buys24h??"—")+" / "+(m.sells24h??"—")+"</div><div><span class='muted'>Kaufanteil</span><br>"+(m.buyPressure==null?"—":(m.buyPressure*100).toFixed(1)+"%")+"</div></div>"+
+   "<p><b>Blockierende Bedingungen</b><br>"+((d.blocks||[]).length?d.blocks.map(esc).join("<br>"):"Keine der definierten Blockbedingungen erkannt.")+"</p>"+
+   "<p><b>Beobachtungen</b><br>"+((d.reasons||[]).length?d.reasons.map(esc).join("<br>"):"Keine zusätzlichen Beobachtungen.")+"</p>"+
+   "<p class='muted' style='font-size:11px'>"+esc(d.method||"")+"<br>"+esc(d.note||"")+"</p></div>";
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("entryForm").addEventListener("submit",e=>{e.preventDefault();const a=document.getElementById("entryAddress").value.trim();if(a)inspectEntry(a);});
+</script></body></html>
