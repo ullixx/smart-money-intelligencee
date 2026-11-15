@@ -92,6 +92,14 @@ document.getElementById("developerForm").addEventListener("submit",e=>{e.prevent
 const KEY="smi_wallet_watchlist_v1";
 function getWallets(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch{return []}}
 function renderWatchlist(){const list=getWallets();document.getElementById("walletCount").textContent=list.length;document.getElementById("watchlist").innerHTML=list.map(a=>'<button type="button" data-wallet="'+esc(a)+'" style="background:#18263a;color:var(--text);border:1px solid var(--line);padding:7px 9px">'+esc(a.slice(0,5)+"…"+a.slice(-5))+' · prüfen</button><button type="button" data-remove="'+esc(a)+'" style="background:#301923;color:#ff9aaa;padding:7px 9px">×</button>').join("");}
+
+document.getElementById("watchlist").addEventListener("click",event=>{
+ const inspect=event.target.closest("[data-wallet]");
+ const remove=event.target.closest("[data-remove]");
+ if(inspect){setActiveView("wallets");inspectWallet(inspect.dataset.wallet);return;}
+ if(remove){const address=remove.dataset.remove;localStorage.setItem(KEY,JSON.stringify(getWallets().filter(item=>item!==address)));renderWatchlist();}
+});
+
 let lastWalletReport=null;
 const HISTORY_KEY="smi_wallet_history_v1";
 function saveWalletSnapshot(d){
