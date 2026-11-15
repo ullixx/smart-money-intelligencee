@@ -4,10 +4,13 @@ export async function onRequestGet({ request }) {
   if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
   const call=async(method,params)=>{const r=await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("Solana RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"Solana RPC Fehler");return j.result;};
   try{
-    const signatures=await call("getSignaturesForAddress",[address,{limit:40}]),transactions=[];let skippedTransactions=0;
-    for(const item of (signatures||[]).slice(0,25)){
+    const signatures=await call("getSignaturesForAddress",[address,{limit:40}]);
+    const selected=(signatures||[]).slice(0,25);
+    let skippedTransactions=0;
+    const analyse=async item=>{
       try{
-        const tx=await call("getTransaction",[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);if(!tx?.meta||tx.meta.err){skippedTransactions++;continue;}
+        const tx=await call("getTransaction",[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
+        if(!tx?.meta||tx.meta.err)return null;
         const keys=tx.transaction?.message?.accountKeys||[],index=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
         const solDelta=index>=0?((tx.meta.postBalances?.[index]||0)-(tx.meta.preBalances?.[index]||0))/1e9:null;
         const changes=new Map();
@@ -20,8 +23,14 @@ export async function onRequestGet({ request }) {
         else if(tokenChanges.length===1&&sent.length===1&&solDelta!==null&&solDelta>0){classification="SELL_INFERRED";classificationBasis="Token-Abgang + SOL-Zugang";}
         else if(tokenChanges.length===2&&received.length===1&&sent.length===1){classification="SWAP_CANDIDATE";classificationBasis="Zwei gegenläufige Token-Salden; Swap-Kandidat, kein bestätigter DEX-Swap";}
         else if(tokenChanges.length>0){classification="TOKEN_MOVEMENT";classificationBasis="Token-Bewegung ohne eindeutiges SOL-Gegenstück";}
-        transactions.push({signature:item.signature,time:item.blockTime?new Date(item.blockTime*1000).toISOString():null,slot:item.slot??null,solDelta,tokenChanges,classification,classificationBasis,feeSol:(tx.meta.fee||0)/1e9,success:!tx.meta.err});
-      }catch(_){skippedTransactions++;}
+        return {signature:item.signature,time:item.blockTime?new Date(item.blockTime*1000).toISOString():null,slot:item.slot??null,solDelta,tokenChanges,classification,classificationBasis,feeSol:(tx.meta.fee||0)/1e9,success:!tx.meta.err};
+      }catch(_){return null;}
+    };
+    const transactions=[];
+    // Fünf gleichzeitige RPC-Abfragen begrenzen Wartezeit und vermeiden einen 25er-Request-Sturm.
+    for(let i=0;i<selected.length;i+=5){
+      const batch=await Promise.all(selected.slice(i,i+5).map(analyse));
+      for(const tx of batch){if(tx)transactions.push(tx);else skippedTransactions++;}
     }
     const successful=transactions.filter(t=>t.success),buys=successful.filter(t=>t.classification==="BUY_INFERRED").length,sells=successful.filter(t=>t.classification==="SELL_INFERRED").length;
     const ledgerMap=new Map();
