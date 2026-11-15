@@ -1,17 +1,19 @@
+import { createSolanaRpc } from "../lib/solana-rpc.js";
 const SYSTEM_PROGRAM="11111111111111111111111111111111";
 export async function onRequestGet({request,env}) {
- const RPCS=[...new Set([env?.SOLANA_RPC_URL,env?.SOLANA_RPC_FALLBACK_URL,"https://solana-rpc.publicnode.com"].filter(Boolean))];let activeProvider="Not yet selected";
+ const rpc=createSolanaRpc(env);let activeProvider="Not yet selected";
+ const rpcCall=rpc.call;
  const u=new URL(request.url),wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
  if(wallets.length<2||wallets.some(a=>!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)))return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
  const rpc=async(method,params)=>{let last;for(let i=0;i<RPCS.length;i++){try{const r=await fetch(RPCS[i],{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC error");activeProvider=i===0?"Primary RPC":RPCS[i]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";return j.result;}catch(e){last=e;}}throw last||new Error("Kein Solana RPC-Endpunkt verfügbar");};
  try{
   const events=[],funding=[],walletStats={};let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
   for(const wallet of wallets){
-   const sigs=await rpc("getSignaturesForAddress",[wallet,{limit:10}]);walletStats[wallet]={requested:Math.min(8,(sigs||[]).length),analysed:0};
+   const sigs=await rpcCall("getSignaturesForAddress",[wallet,{limit:10}]);walletStats[wallet]={requested:Math.min(8,(sigs||[]).length),analysed:0};
    for(const sig of (sigs||[]).slice(0,8)){
     transactionsRequested++;
     try{
-     const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);
+     const tx=await rpcCall("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);
      if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
      transactionsAnalysed++;walletStats[wallet].analysed++;
      const keys=tx.transaction?.message?.accountKeys||[],loaded=[...(tx.meta.loadedAddresses?.writable||[]),...(tx.meta.loadedAddresses?.readonly||[])],allKeys=[...keys,...loaded];
@@ -38,6 +40,7 @@ export async function onRequestGet({request,env}) {
   const sharedFunders=[...funderMap.entries()].map(([funder,items])=>({funder,walletCount:new Set(items.map(x=>x.wallet)).size,wallets:[...new Set(items.map(x=>x.wallet))],transfers:items.length,totalSol:items.reduce((n,x)=>n+x.lamports/1e9,0),firstSeen:new Date(Math.min(...items.map(x=>x.time))*1000).toISOString(),lastSeen:new Date(Math.max(...items.map(x=>x.time))*1000).toISOString()})).filter(x=>x.walletCount>=2).sort((a,b)=>b.walletCount-a.walletCount||b.transfers-a.transfers);
   const relationships=[];
   for(const c of clusters){const funder=sharedFunders.find(f=>c.wallets.every(w=>f.wallets.includes(w)));const score=35+(funder?45:0)+(c.buyCandidateCount>=2?20:0);relationships.push({...c,evidenceScore:Math.min(100,score),evidenceLevel:funder?"MULTIPLE_SIGNALS":"TIME_OVERLAP_ONLY",sharedFunder:funder?.funder||null,interpretation:funder?"Gemeinsamer Funding-Absender plus zeitliche Token-Überschneidung":"Zeitliche Token-Überschneidung ohne gemeinsamen Funding-Nachweis"});}
+  activeProvider=rpc.providerLabel();
   return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,walletStats,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,buyCandidates:events.filter(x=>x.kind==="BUY_CANDIDATE").length,clusters:relationships,sharedTokens,sharedFunders,note:"Untersucht werden maximal 8 aktuelle Transaktionen je Wallet. Funding-Beziehungen beruhen auf expliziten eingehenden System-Transfers in diesem Stichprobenfenster; Börsen, Relayer und gemeinsame Dienste können denselben Absender erklären. Zeitliche Überschneidungen und gemeinsame Funding-Absender beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen. Token-Zugänge sind Kaufkandidaten, keine bestätigten Swaps."},{headers:{"Cache-Control":"no-store"}});
- }catch(e){return Response.json({status:"UNAVAILABLE",error:"Solana RPC nicht erreichbar oder rate-limited",detail:e.message,clusters:[]},{status:502});}
+ }catch(e){activeProvider=rpc.providerLabel();return Response.json({status:"UNAVAILABLE",rpcProvider:activeProvider,error:"Solana RPC nicht erreichbar oder rate-limited",detail:e.message,clusters:[]},{status:502});}
 }
