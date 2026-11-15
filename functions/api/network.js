@@ -1,4 +1,4 @@
-const RPC="https://api.mainnet-beta.solana.com";
+const RPC="https://solana-rpc.publicnode.com";
 export async function onRequestGet({request}) {
  const u=new URL(request.url);
  const wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
