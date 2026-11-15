@@ -110,7 +110,7 @@ async function inspectNetwork(){
  try{
   const r=await fetch("/api/network?wallets="+encodeURIComponent(list.join(",")),{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Netzwerkanalyse fehlgeschlagen");
   const clusters=d.clusters||[],shared=d.sharedTokens||[];
-  out.innerHTML='<p><b style="color:var(--amber)">'+d.status+'</b> · '+d.walletsChecked+' Wallets · '+d.transactionsScanned+' Signatur-Slots geprüft · '+d.positiveTokenMovements+' positive Token-Bewegungen</p>'+
+  out.innerHTML='<p><b style="color:var(--amber)">'+d.status+'</b> · '+d.walletsChecked+' Wallets · '+d.transactionsScanned+' Signatur-Slots geprüft · '+d.positiveTokenMovements+' Kaufkandidaten (Token-Zugang + SOL-Abgang)</p>'+
    '<h3 style="font-size:14px">Zeitliche Überschneidungen</h3>'+
    (clusters.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>Wallets</th><th>Zeitfenster</th><th>Ereignisse</th><th>Token-Explorer</th></tr></thead><tbody>'+clusters.map(c=>'<tr><td>'+esc(c.mint.slice(0,7)+"…"+c.mint.slice(-6))+'</td><td>'+c.walletCount+'<br><span class="muted">'+c.wallets.map(esc).join(", ")+'</span></td><td>'+new Date(c.firstSeen).toLocaleString("de-DE")+'<br><span class="muted">'+c.windowMinutes+' Min.</span></td><td>'+c.events+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(c.mint)+'">Solscan ↗</a></td></tr>').join("")+'</tbody></table></div>':'Keine zeitlichen Überschneidungen in den geprüften Transaktionen gefunden.')+
    '<h3 style="font-size:14px;margin-top:18px">Gemeinsam berührte Token</h3>'+
