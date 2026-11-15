@@ -2,7 +2,7 @@ export async function onRequestGet({ request, env }) {
   const url=new URL(request.url),address=(url.searchParams.get("address")||"").trim();
   if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
   const primaryRpc=env?.SOLANA_RPC_URL||"https://solana-rpc.publicnode.com";
-  const fallbackRpc=env?.SOLANA_RPC_FALLBACK_URL||"";
+  const fallbackRpc=env?.SOLANA_RPC_FALLBACK_URL||"https://solana-rpc.publicnode.com";
   const rpcEndpoints=[...new Set([primaryRpc,fallbackRpc].filter(Boolean))];
   const rpcProvider=env?.SOLANA_RPC_URL?"Configured primary RPC":"PublicNode fallback";
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
