@@ -12,6 +12,17 @@ export async function onRequestGet({request}){
    }
   }
  }catch{}
+ // Jupiter Tokens API als zweite Metadatenquelle für Solana-Mints.
+ try{
+  const response=await fetch("https://api.jup.ag/tokens/v2/search?query="+encodeURIComponent(mint),{headers:{"Accept":"application/json"}});
+  if(response.ok){
+   const data=await response.json(),tokens=Array.isArray(data)?data:[];
+   const token=tokens.find(t=>(t.id||"").toLowerCase()===mint.toLowerCase());
+   if(token&&(clean(token.name)||clean(token.symbol))){
+    return Response.json({status:"LIVE",mint,name:clean(token.name),symbol:clean(token.symbol),source:"Jupiter Tokens API",image:clean(token.icon),verified:token.isVerified??null,organicScore:token.organicScore??null,pairUrl:"https://pump.fun/coin/"+encodeURIComponent(mint)},{headers:{"Cache-Control":"public, max-age=300"}});
+   }
+  }
+ }catch{}
  // Fallback for tokens traded on DEXes outside Pump.fun.
  try{
   const response=await fetch("https://api.dexscreener.com/latest/dex/tokens/"+encodeURIComponent(mint),{headers:{"Accept":"application/json"}});
