@@ -1,9 +1,9 @@
 export async function onRequestGet({request,env}) {
- const RPC=env?.SOLANA_RPC_URL||env?.SOLANA_RPC_FALLBACK_URL||"https://solana-rpc.publicnode.com";
+ const RPCS=[...new Set([env?.SOLANA_RPC_URL,env?.SOLANA_RPC_FALLBACK_URL,"https://solana-rpc.publicnode.com"].filter(Boolean))];let activeProvider="Not yet selected";
  const u=new URL(request.url);
  const wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
  if(wallets.length<2||wallets.some(a=>!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a))) return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
- const rpc=async(method,params)=>{const r=await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC error");return j.result;};
+ const rpc=async(method,params)=>{let last;for(let i=0;i<RPCS.length;i++){try{const r=await fetch(RPCS[i],{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC error");activeProvider=i===0?"Primary RPC":RPCS[i]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";return j.result;}catch(e){last=e;}}throw last||new Error("Kein Solana RPC-Endpunkt verfügbar");};
  try{
   const events=[];let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
   for(const wallet of wallets){
@@ -38,6 +38,6 @@ export async function onRequestGet({request,env}) {
   }
   clusters.sort((a,b)=>b.walletCount-a.walletCount||b.events-a.events);
   const overlap=[...byMint.entries()].map(([mint,ev])=>({mint,walletCount:new Set(ev.map(x=>x.wallet)).size})).filter(x=>x.walletCount>=2).sort((a,b)=>b.walletCount-a.walletCount);
-  return Response.json({status:"PARTIAL",source:"Solana public RPC",checkedAt:new Date().toISOString(),walletsChecked:wallets.length,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,inferredBuyCandidates:events.length,clusters,sharedTokens:overlap,note:"Erfasst werden positive Token-Bewegungen bei gleichzeitigem SOL-Abgang. Das ist nur ein Kaufkandidat: Gebühren, Rent, Token-Transfers und Swap-Routen können die Zuordnung verfälschen. Zeitliche Überschneidungen beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen."},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,inferredBuyCandidates:events.length,clusters,sharedTokens:overlap,note:"Erfasst werden positive Token-Bewegungen bei gleichzeitigem SOL-Abgang. Das ist nur ein Kaufkandidat: Gebühren, Rent, Token-Transfers und Swap-Routen können die Zuordnung verfälschen. Zeitliche Überschneidungen beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",error:"Solana RPC nicht erreichbar oder rate-limited",detail:e.message,clusters:[]},{status:502});}
 }
