@@ -94,9 +94,9 @@ export async function onRequestGet({ request, env }) {
     const tokenLedger=[...ledgerMap.values()].sort((a,b)=>b.transactions-a.transactions);
     const buyEvents=[];
     for(const tx of successful){
-      if(!["BUY_INFERRED","DEX_SWAP_DETECTED"].includes(tx.classification))continue;
+      if(!["BUY_INFERRED","DEX_SWAP_DETECTED","SWAP_CANDIDATE"].includes(tx.classification))continue;
       for(const change of tx.tokenChanges.filter(x=>x.amount>0)){
-        buyEvents.push({mint:change.mint,time:tx.time,signature:tx.signature,amount:change.amount,classification:tx.classification});
+        buyEvents.push({mint:change.mint,time:tx.time,signature:tx.signature,amount:change.amount,classification:tx.classification,confidence:tx.classification==="DEX_SWAP_DETECTED"?"PROGRAM_CONFIRMED":"INFERRED_OR_CANDIDATE"});
       }
     }
     const buyMap=new Map();
