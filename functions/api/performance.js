@@ -12,27 +12,32 @@ export async function onRequestGet({request,env}){
    try{
     const tq=await rpc(RPCS,"getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);const tx=tq.result;if(tq.provider>0)activeProvider=RPCS[tq.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";
     if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
-    const keys=tx.transaction?.message?.accountKeys||[],ix=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
+    const staticKeys=tx.transaction?.message?.accountKeys||[];
+    const loadedKeys=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])];
+    const keys=[...staticKeys,...loadedKeys],ix=keys.findIndex(k=>(typeof k==="string"?k:k?.pubkey)===address);
     const sol=ix>=0?((tx.meta.postBalances?.[ix]||0)-(tx.meta.preBalances?.[ix]||0))/1e9:null;
     const changes=new Map();
     for(const b of tx.meta.preTokenBalances||[])if(b.owner===address)changes.set(b.mint,{mint:b.mint,amount:-Number(b.uiTokenAmount?.uiAmountString||0)});
     for(const b of tx.meta.postTokenBalances||[])if(b.owner===address){const v=changes.get(b.mint)||{mint:b.mint,amount:0};v.amount+=Number(b.uiTokenAmount?.uiAmountString||0);changes.set(b.mint,v);}
     const delta=[...changes.values()].filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
-    if(delta.length!==1||sol===null){if(delta.length>0)unclassifiedTransactions++;continue;}
-    const c=delta[0];let side=null;
-    if(c.amount>0&&sol<0)side="BUY";else if(c.amount<0&&sol>0)side="SELL";else {unclassifiedTransactions++;continue;}
-    mints.add(c.mint);events.push({mint:c.mint,side,amount:Math.abs(c.amount),time:sig.blockTime,signature:sig.signature,solDelta:sol});
+    const sent=delta.filter(x=>x.amount<0),received=delta.filter(x=>x.amount>0);
+    const swapLike=(sent.length>0&&received.length>0)||(received.length>0&&sol!==null&&sol<0)||(sent.length>0&&sol!==null&&sol>0);
+    if(!swapLike){if(delta.length>0)unclassifiedTransactions++;continue;}
+    for(const change of sent){mints.add(change.mint);events.push({mint:change.mint,side:"SELL",amount:Math.abs(change.amount),time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:"SWAP_SIDE_INFERRED"});}
+    for(const change of received){mints.add(change.mint);events.push({mint:change.mint,side:"BUY",amount:change.amount,time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:"SWAP_SIDE_INFERRED"});}
+    if(!delta.length)unclassifiedTransactions++;
    }catch(_){skippedTransactions++;}
   }
   const priceMap={};
   for(const mint of [...mints].slice(0,8)){
    try{
     const pairs=await json("https://api.dexscreener.com/token-pairs/v1/solana/"+mint);
-    const pool=(Array.isArray(pairs)?pairs:[]).filter(p=>p.baseToken?.address===mint&&p.pairAddress).sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
+    const pool=(Array.isArray(pairs)?pairs:[]).filter(p=>(p.baseToken?.address===mint||p.quoteToken?.address===mint)&&p.pairAddress).sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
     if(!pool) {priceMap[mint]={status:"UNAVAILABLE",reason:"Kein passender DEX-Screener-Pool"};continue;}
+    const poolToken=pool.baseToken?.address===mint?"base":"quote";
     const end=Math.max(...events.filter(e=>e.mint===mint).map(e=>e.time));
     const before=Math.floor(end/3600)*3600+3600;
-    const u=GT+"/networks/solana/pools/"+pool.pairAddress+"/ohlcv/hour?aggregate=1&limit=1000&before_timestamp="+before+"&currency=usd&token=base";
+    const u=GT+"/networks/solana/pools/"+pool.pairAddress+"/ohlcv/hour?aggregate=1&limit=1000&before_timestamp="+before+"&currency=usd&token="+poolToken;
     const candles=await json(u,{headers});
     const list=candles?.data?.attributes?.ohlcv_list||[];
     priceMap[mint]={status:list.length?"HISTORICAL":"UNAVAILABLE",pairAddress:pool.pairAddress,poolUrl:pool.url,candles:list.map(x=>({time:x[0],open:Number(x[1]),high:Number(x[2]),low:Number(x[3]),close:Number(x[4])}))};
