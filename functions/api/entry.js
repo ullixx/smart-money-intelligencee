@@ -1,4 +1,4 @@
-const RPC="https://api.mainnet-beta.solana.com";
+const RPC="https://solana-rpc.publicnode.com";
 const valid=a=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
 export async function onRequestGet({request}){
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
