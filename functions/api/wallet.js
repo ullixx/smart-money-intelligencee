@@ -4,10 +4,10 @@ export async function onRequestGet({ request }) {
   if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
   const call=async(method,params)=>{const r=await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("Solana RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"Solana RPC Fehler");return j.result;};
   try{
-    const signatures=await call("getSignaturesForAddress",[address,{limit:40}]),transactions=[];
+    const signatures=await call("getSignaturesForAddress",[address,{limit:40}]),transactions=[];let skippedTransactions=0;
     for(const item of (signatures||[]).slice(0,25)){
       try{
-        const tx=await call("getTransaction",[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);if(!tx?.meta)continue;
+        const tx=await call("getTransaction",[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);if(!tx?.meta||tx.meta.err){skippedTransactions++;continue;}
         const keys=tx.transaction?.message?.accountKeys||[],index=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
         const solDelta=index>=0?((tx.meta.postBalances?.[index]||0)-(tx.meta.preBalances?.[index]||0))/1e9:null;
         const changes=new Map();
@@ -30,6 +30,6 @@ export async function onRequestGet({ request }) {
     const activityScore=Math.min(100,successful.length*3+buys*2+sells*2+repeatTokens*5);
     const activityLabel=successful.length<5?"Zu wenig Daten":activityScore>=65?"Hohe beobachtete Aktivität":activityScore>=30?"Mittlere beobachtete Aktivität":"Geringe beobachtete Aktivität";
     const netSol=successful.reduce((sum,t)=>sum+(t.solDelta||0),0);
-    return Response.json({status:"PARTIAL",source:"Solana public RPC",address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,distinctTokens:tokenLedger.length,netSol,repeatTokens},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},tokenLedger,transactions,note:"Nur die letzten bis zu 25 auswertbaren Transaktionen. BUY/SELL sind Heuristiken. Transfers, Gebühren, Rent und Token-zu-Token-Swaps können die Einordnung verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
+    return Response.json({status:"PARTIAL",source:"Solana public RPC",address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,skippedTransactions,coverage:Math.round(transactions.length/Math.max(1,Math.min(25,(signatures||[]).length))*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,distinctTokens:tokenLedger.length,netSol,repeatTokens},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},tokenLedger,transactions,note:"Nur die letzten bis zu 25 Signaturen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Transfers, Gebühren, Rent und Token-zu-Token-Swaps können die Einordnung verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
   }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana public RPC",address,checkedAt:new Date().toISOString(),error:"RPC momentan nicht erreichbar oder rate-limited",detail:e.message,transactions:[]},{status:502});}
 }
