@@ -6,10 +6,15 @@ const DEX_PROGRAM_IDS=new Set([
   "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 ]);
 const hasKnownDexInstruction=tx=>{
+  const keys=tx.transaction?.message?.accountKeys||[];
   const outer=tx.transaction?.message?.instructions||[];
   const inner=(tx.meta?.innerInstructions||[]).flatMap(x=>x.instructions||[]);
   return [...outer,...inner].some(ix=>{
-    const id=ix.programId||ix.programIdIndex;
+    let id=ix.programId;
+    if(!id&&Number.isInteger(ix.programIdIndex)){
+      const key=keys[ix.programIdIndex];
+      id=typeof key==="string"?key:key?.pubkey;
+    }
     return typeof id==="string"&&DEX_PROGRAM_IDS.has(id);
   });
 };
@@ -67,12 +72,14 @@ export async function onRequestGet({ request, env }) {
         const received=tokenChanges.filter(x=>x.amount>0),sent=tokenChanges.filter(x=>x.amount<0);
         let classification="UNCLEAR",classificationBasis="Nicht eindeutig";
         const dexInstructionDetected=hasKnownDexInstruction(tx);
-        if(dexInstructionDetected&&received.length>0&&sent.length>0){classification="DEX_SWAP_DETECTED";classificationBasis="Bekannte DEX-Programm-ID in der Transaktion + gegenläufige Token-Salden; Swap-Ausführung erkannt, Route und Ausführungspreis nicht vollständig dekodiert";}
-        else if(tokenChanges.length===1&&received.length===1&&solDelta!==null&&solDelta<0){classification="BUY_INFERRED";classificationBasis="Token-Zugang + SOL-Abgang; kein bestätigtes DEX-Programm erkannt";}
-        else if(tokenChanges.length===1&&sent.length===1&&solDelta!==null&&solDelta>0){classification="SELL_INFERRED";classificationBasis="Token-Abgang + SOL-Zugang; kein bestätigtes DEX-Programm erkannt";}
-        else if(tokenChanges.length===2&&received.length===1&&sent.length===1){classification="SWAP_CANDIDATE";classificationBasis="Zwei gegenläufige Token-Salden; DEX-Programm nicht bestätigt";}
-        else if(tokenChanges.length>0){classification="TOKEN_MOVEMENT";classificationBasis="Token-Bewegung ohne eindeutiges SOL-Gegenstück";}
-        return {signature:item.signature,time:item.blockTime?new Date(item.blockTime*1000).toISOString():null,slot:item.slot??null,solDelta,tokenChanges,classification,classificationBasis,feeSol:(tx.meta.fee||0)/1e9,success:!tx.meta.err};
+        if(dexInstructionDetected&&received.length>0&&sent.length>0){classification="DEX_SWAP_DETECTED";classificationBasis="Bekannte DEX-Programm-ID + mindestens ein Token-Zugang und Token-Abgang; wirtschaftlicher Pfad wird aus Salden rekonstruiert";}
+        else if(received.length>0&&sent.length>0){classification="SWAP_CANDIDATE";classificationBasis="Gegenläufige Token-Salden; unbekannter oder nicht bestätigter Router, daher Swap-Kandidat";}
+        else if(received.length===1&&sent.length===0&&solDelta!==null&&solDelta<0){classification="BUY_INFERRED";classificationBasis="Token-Zugang + SOL-Abgang; Kauf nur vermutet, kein bestätigtes DEX-Programm";}
+        else if(sent.length===1&&received.length===0&&solDelta!==null&&solDelta>0){classification="SELL_INFERRED";classificationBasis="Token-Abgang + SOL-Zugang; Verkauf nur vermutet, kein bestätigtes DEX-Programm";}
+        else if(tokenChanges.length>0){classification="TOKEN_MOVEMENT";classificationBasis="Token-Bewegung ohne eindeutig rekonstruierbare Gegenleistung";}
+        const assetsSent=sent.map(x=>({mint:x.mint,amount:Math.abs(x.amount)}));
+        const assetsReceived=received.map(x=>({mint:x.mint,amount:x.amount}));
+        return {signature:item.signature,time:item.blockTime?new Date(item.blockTime*1000).toISOString():null,slot:item.slot??null,solDelta,tokenChanges,assetsSent,assetsReceived,swapDirection:assetsSent.length&&assetsReceived.length?"TOKEN_TO_TOKEN":assetsReceived.length&&solDelta<0?"SOL_TO_TOKEN":assetsSent.length&&solDelta>0?"TOKEN_TO_SOL":"UNRESOLVED",classification,classificationBasis,feeSol:(tx.meta.fee||0)/1e9,success:!tx.meta.err};
       }catch(error){skipReasons.rpcError++;const message=String(error?.message||error||"Unknown RPC error").slice(0,180);rpcErrorDetails[message]=(rpcErrorDetails[message]||0)+1;return null;}
     };
     const transactions=[];
