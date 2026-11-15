@@ -7,14 +7,16 @@ const DEX_PROGRAM_IDS=new Set([
 ]);
 const hasKnownDexInstruction=tx=>{
   const keys=tx.transaction?.message?.accountKeys||[];
+  const loaded=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])];
+  const keyAt=index=>{
+    const key=index<keys.length?keys[index]:loaded[index-keys.length];
+    return typeof key==="string"?key:key?.pubkey;
+  };
   const outer=tx.transaction?.message?.instructions||[];
   const inner=(tx.meta?.innerInstructions||[]).flatMap(x=>x.instructions||[]);
   return [...outer,...inner].some(ix=>{
     let id=ix.programId;
-    if(!id&&Number.isInteger(ix.programIdIndex)){
-      const key=keys[ix.programIdIndex];
-      id=typeof key==="string"?key:key?.pubkey;
-    }
+    if(!id&&Number.isInteger(ix.programIdIndex))id=keyAt(ix.programIdIndex);
     return typeof id==="string"&&DEX_PROGRAM_IDS.has(id);
   });
 };
