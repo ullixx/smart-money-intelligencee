@@ -15,16 +15,16 @@ const checks = [
   {
     name: "Solana RPC",
     run: async () => {
-      const r = await fetch("https://api.mainnet-beta.solana.com", {
+      const r = await fetch("https://solana-rpc.publicnode.com", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth" }),
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getSlot" }),
         signal: AbortSignal.timeout(8000)
       });
       if (!r.ok) throw new Error("HTTP " + r.status);
       const data = await r.json();
-      if (data.error || data.result !== "ok") throw new Error(data.error?.message || "RPC meldet nicht ok");
-      return { result: data.result };
+      if (data.error || !Number.isFinite(data.result)) throw new Error(data.error?.message || "RPC meldet nicht ok");
+      return { slot: data.result };
     }
   }
 ];
