@@ -15,14 +15,17 @@ export async function onRequestGet({request,env}){
     try{
      const q=await rpc(RPCS,"getTransaction",[sig.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:2}]);const tx=q.result;if(q.provider>0)activeProvider=RPCS[q.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";
      if(!tx?.meta||tx.meta.err){skipped++;continue;}
-     const keys=tx.transaction?.message?.accountKeys||[],idx=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
+     const staticKeys=tx.transaction?.message?.accountKeys||[],loadedKeys=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])],keys=[...staticKeys,...loadedKeys];
+     const idx=keys.findIndex(k=>(typeof k==="string"?k:k?.pubkey)===address);
      const sol=idx>=0?((tx.meta.postBalances?.[idx]||0)-(tx.meta.preBalances?.[idx]||0))/1e9:null;
      const deltas=new Map();
      for(const b of tx.meta.preTokenBalances||[])if(b.owner===address)deltas.set(b.mint,{mint:b.mint,amount:-Number(b.uiTokenAmount?.uiAmountString||0)});
      for(const b of tx.meta.postTokenBalances||[])if(b.owner===address){const v=deltas.get(b.mint)||{mint:b.mint,amount:0};v.amount+=Number(b.uiTokenAmount?.uiAmountString||0);deltas.set(b.mint,v);}
      const changes=[...deltas.values()].filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
-     if(changes.length===1&&sol!==null&&sol<0&&changes[0].amount>0){buys++;buyMints.add(changes[0].mint);mintCounts.set(changes[0].mint,(mintCounts.get(changes[0].mint)||0)+1);}
-     else if(changes.length===1&&sol!==null&&sol>0&&changes[0].amount<0){sells++;mintCounts.set(changes[0].mint,(mintCounts.get(changes[0].mint)||0)+1);}
+     const received=changes.filter(x=>x.amount>0),sent=changes.filter(x=>x.amount<0);
+     if(received.length>0&&sent.length===0&&sol!==null&&sol<0){buys+=received.length;for(const change of received){buyMints.add(change.mint);mintCounts.set(change.mint,(mintCounts.get(change.mint)||0)+1);}}
+     else if(sent.length>0&&received.length===0&&sol!==null&&sol>0){sells+=sent.length;for(const change of sent)mintCounts.set(change.mint,(mintCounts.get(change.mint)||0)+1);}
+     else if(received.length>0&&sent.length>0){buys+=received.length;sells+=sent.length;for(const change of received){buyMints.add(change.mint);mintCounts.set(change.mint,(mintCounts.get(change.mint)||0)+1);}for(const change of sent)mintCounts.set(change.mint,(mintCounts.get(change.mint)||0)+1);}
      analysed++;
     }catch(_){skipped++;}
    }
