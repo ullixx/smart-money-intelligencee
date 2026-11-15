@@ -12,7 +12,8 @@ export async function onRequestGet({request}) {
     transactionsRequested++;
     try{
      const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
-     if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}\n     transactionsAnalysed++;
+     if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
+     transactionsAnalysed++;
      const keys=tx.transaction?.message?.accountKeys||[],walletIndex=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===wallet);
      const solDelta=walletIndex>=0?((tx.meta.postBalances?.[walletIndex]||0)-(tx.meta.preBalances?.[walletIndex]||0))/1e9:null;
      const deltas=new Map();
