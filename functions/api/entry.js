@@ -22,7 +22,6 @@ export async function onRequestGet({request,env}){
    rpc(RPCS,"getAccountInfo",[address,{encoding:"jsonParsed",commitment:"confirmed"}])
   ]);
   if(!pairsRes.ok)throw new Error("DEX Screener HTTP "+pairsRes.status);
-  if(!accountRes.ok)throw new Error("Solana RPC HTTP "+accountRes.status);
   const pairs=await pairsRes.json(),rpcJson=accountRes;
   activeProvider=rpcJson.provider===0?"Primary RPC":RPCS[rpcJson.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";
   const mintInfo=rpcJson.result?.value?.data?.parsed?.info;
