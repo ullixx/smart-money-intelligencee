@@ -5,7 +5,6 @@ export async function onRequestGet({request,env}) {
  const rpcCall=rpc.call;
  const u=new URL(request.url),wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
  if(wallets.length<2||wallets.some(a=>!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)))return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
- const rpc=async(method,params)=>{let last;for(let i=0;i<RPCS.length;i++){try{const r=await fetch(RPCS[i],{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC error");activeProvider=i===0?"Primary RPC":RPCS[i]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";return j.result;}catch(e){last=e;}}throw last||new Error("Kein Solana RPC-Endpunkt verfügbar");};
  try{
   const events=[],funding=[],walletStats={};let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
   for(const wallet of wallets){
