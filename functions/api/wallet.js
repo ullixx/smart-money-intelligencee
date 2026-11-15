@@ -3,8 +3,8 @@ export async function onRequestGet({ request, env }) {
   if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
   const primaryRpc=env?.SOLANA_RPC_URL||"https://solana-rpc.publicnode.com";
   const fallbackRpc=env?.SOLANA_RPC_FALLBACK_URL||"https://solana-rpc.publicnode.com";
-  const rpcEndpoints=[...new Set([primaryRpc,fallbackRpc].filter(Boolean))];
-  const rpcProvider=env?.SOLANA_RPC_URL?"Configured primary RPC":"PublicNode fallback";
+  const rpcEndpoints=[...new Set([primaryRpc,fallbackRpc,"https://solana-rpc.publicnode.com"].filter(Boolean))];
+  let rpcProvider="Not yet selected";
   const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const call=async(method,params)=>{
     let lastError;
@@ -20,6 +20,7 @@ export async function onRequestGet({ request, env }) {
           if(!r.ok)throw new Error("Solana RPC HTTP "+r.status);
           const j=await r.json();
           if(j.error)throw new Error("Solana RPC "+(j.error.code??"error")+": "+(j.error.message||"Unbekannter Fehler"));
+          rpcProvider=endpoint===primaryRpc?"Helius / Primary":endpoint===fallbackRpc?"QuickNode / Fallback":"PublicNode / Last resort";
           return j.result;
         }catch(error){
           lastError=error;
@@ -71,6 +72,6 @@ export async function onRequestGet({ request, env }) {
     const activityScore=Math.min(100,successful.length*3+buys*2+sells*2+repeatTokens*5);
     const activityLabel=successful.length<5?"Zu wenig Daten":activityScore>=65?"Hohe beobachtete Aktivität":activityScore>=30?"Mittlere beobachtete Aktivität":"Geringe beobachtete Aktivität";
     const netSol=successful.reduce((sum,t)=>sum+(t.solDelta||0),0);
-    return Response.json({status:"PARTIAL",source:rpcProvider,address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,requestedTransactions:selected.length,skippedTransactions,skipReasons,rpcErrorDetails,coverage:Math.round(transactions.length/Math.max(1,selected.length)*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,distinctTokens:tokenLedger.length,netSol,repeatTokens},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},tokenLedger,transactions,note:"Pro Anfrage maximal 12 der neuesten Signaturen, um Cloudflare-Subrequest-Limits zu vermeiden. skipReasons unterscheidet RPC-Fehler, nicht gefundene Transaktionen, fehlende Metadaten und fehlgeschlagene Transaktionen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Transfers können wie Token-zu-Token-Swaps aussehen; SWAP_CANDIDATE ist ausdrücklich keine bestätigte DEX-Ausführung. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
-  }catch(e){return Response.json({status:"UNAVAILABLE",source:rpcProvider,address,checkedAt:new Date().toISOString(),error:"RPC momentan nicht erreichbar oder rate-limited",detail:e.message,transactions:[]},{status:502});}
+    return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider,address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,requestedTransactions:selected.length,skippedTransactions,skipReasons,rpcErrorDetails,coverage:Math.round(transactions.length/Math.max(1,selected.length)*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,distinctTokens:tokenLedger.length,netSol,repeatTokens},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},tokenLedger,transactions,note:"Pro Anfrage maximal 12 der neuesten Signaturen, um Cloudflare-Subrequest-Limits zu vermeiden. skipReasons unterscheidet RPC-Fehler, nicht gefundene Transaktionen, fehlende Metadaten und fehlgeschlagene Transaktionen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Transfers können wie Token-zu-Token-Swaps aussehen; SWAP_CANDIDATE ist ausdrücklich keine bestätigte DEX-Ausführung. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
+  }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana RPC mit automatischem Failover",rpcProvider,address,checkedAt:new Date().toISOString(),error:"RPC momentan nicht erreichbar oder rate-limited",detail:e.message,transactions:[]},{status:502});}
 }
