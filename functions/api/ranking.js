@@ -37,5 +37,5 @@ export async function onRequestGet({request,env}){
   const ranked=results.filter(x=>x.score!==null).sort((a,b)=>b.score-a.score);
   ranked.forEach((x,i)=>x.rank=i+1);
   return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,ranked:[...ranked,...results.filter(x=>x.score===null)],note:"Nur bis zu 15 der letzten 20 Signaturen je Wallet. BUY/SELL sind Heuristiken aus Token-Delta und SOL-Delta. Ein hoher Rang bedeutet mehr beobachtete Aktivität, nicht nachgewiesenen Gewinn, Insiderwissen oder Smart-Money-Qualität. Für belastbare Performance sind längere Historie und vollständige Swap-/Preisdekodierung nötig."},{headers:{"Cache-Control":"no-store"}});
- }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana public RPC",error:"Ranking nicht verfügbar",detail:e.message},{status:502});}
+ }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,error:"Ranking nicht verfügbar",detail:e.message},{status:502});}
 }
