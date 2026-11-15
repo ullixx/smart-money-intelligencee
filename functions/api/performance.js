@@ -7,11 +7,11 @@ export async function onRequestGet({request}){
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse"},{status:400});
  try{
-  const sigs=await rpc("getSignaturesForAddress",[address,{limit:30}]),events=[],mints=new Set();
+  const sigs=await rpc("getSignaturesForAddress",[address,{limit:30}]),events=[],mints=new Set();let skippedTransactions=0;
   for(const sig of (sigs||[]).slice(0,25)){
    try{
     const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
-    if(!tx?.meta||tx.meta.err||!sig.blockTime)continue;
+    if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
     const keys=tx.transaction?.message?.accountKeys||[],ix=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
     const sol=ix>=0?((tx.meta.postBalances?.[ix]||0)-(tx.meta.preBalances?.[ix]||0))/1e9:null;
     const changes=new Map();
@@ -22,7 +22,7 @@ export async function onRequestGet({request}){
     const c=delta[0];let side=null;
     if(c.amount>0&&sol<0)side="BUY";else if(c.amount<0&&sol>0)side="SELL";else continue;
     mints.add(c.mint);events.push({mint:c.mint,side,amount:Math.abs(c.amount),time:sig.blockTime,signature:sig.signature,solDelta:sol});
-   }catch(_){}
+   }catch(_){skippedTransactions++;}
   }
   const priceMap={};
   for(const mint of [...mints].slice(0,8)){
@@ -65,6 +65,6 @@ export async function onRequestGet({request}){
    results.push({mint,buys:arr.filter(x=>x.side==="BUY").length,sells:arr.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?realized:null,profitableClosedLots:realized>0?1:0,openLots:lots.length,unmatchedEvents:unmatched,events:arr.map(({mint,...x})=>x),priceSource:priceMap[mint]?.status||"UNAVAILABLE",poolUrl:priceMap[mint]?.poolUrl||null});
   }
   const closed=results.filter(x=>x.estimatedRealizedPnlUsd!==null),wins=closed.filter(x=>x.estimatedRealizedPnlUsd>0).length;
-  return Response.json({status:"PARTIAL",source:"Solana RPC + DEX Screener + GeckoTerminal OHLCV",address,checkedAt:new Date().toISOString(),events:priced.length,tokenResults:results,summary:{tokens:results.length,pricedEvents:priced.filter(x=>x.priceUsd!==null).length,unpricedEvents:priced.filter(x=>x.priceUsd===null).length,closedTokens:closed.length,positiveTokenPnlTokens:wins,tokenLevelPositiveShare:closed.length?wins/closed.length:null},note:"Nur bis zu 25 jüngste Transaktionen und bis zu 8 Token. FIFO-PnL ist eine Näherung aus Stundenkerzen-Schlusskursen; keine Gebühren-/Slippage-/MEV-/Steuerberechnung. Unvollständige Transaktionspaare und offene Positionen bleiben unbewertet. Trefferquote auf Token-Ebene, keine Trade-Trefferquote."},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({status:"PARTIAL",source:"Solana RPC + DEX Screener + GeckoTerminal OHLCV",address,checkedAt:new Date().toISOString(),events:priced.length,signaturesReceived:(sigs||[]).length,transactionsRequested:Math.min(25,(sigs||[]).length),skippedTransactions,coverage:Math.round((Math.min(25,(sigs||[]).length)-skippedTransactions)/Math.max(1,Math.min(25,(sigs||[]).length))*100),historyStatus:(sigs||[]).length>=25?"LIMITED_TO_RECENT_25":"AVAILABLE_SIGNATURE_WINDOW",tokenResults:results,summary:{tokens:results.length,pricedEvents:priced.filter(x=>x.priceUsd!==null).length,unpricedEvents:priced.filter(x=>x.priceUsd===null).length,closedTokens:closed.length,positiveTokenPnlTokens:wins,tokenLevelPositiveShare:closed.length?wins/closed.length:null},note:"Nur bis zu 25 jüngste Transaktionen und bis zu 8 Token. Übersprungene oder nicht dekodierbare Transaktionen werden separat ausgewiesen. FIFO-PnL ist eine Näherung aus Stundenkerzen-Schlusskursen; keine Gebühren-/Slippage-/MEV-/Steuerberechnung. Unvollständige Transaktionspaare und offene Positionen bleiben unbewertet. Trefferquote auf Token-Ebene, keine Trade-Trefferquote."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",error:"Historische Performance konnte nicht berechnet werden",detail:e.message,tokenResults:[]},{status:502});}
 }
