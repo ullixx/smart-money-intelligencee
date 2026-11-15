@@ -28,27 +28,6 @@ export async function onRequestGet({ request, env }) {
   const call=rpc.call;
   let rpcProvider="Not yet selected";
   try{
-          const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});
-          if(r.status===429||r.status>=500){
-            lastError=new Error("Solana RPC HTTP "+r.status);
-            if(attempt<1){await sleep(350);continue;}
-            break;
-          }
-          if(!r.ok)throw new Error("Solana RPC HTTP "+r.status);
-          const j=await r.json();
-          if(j.error)throw new Error("Solana RPC "+(j.error.code??"error")+": "+(j.error.message||"Unbekannter Fehler"));
-          rpcProvider=endpoint===primaryRpc?"Helius / Primary":endpoint===fallbackRpc?"QuickNode / Fallback":"PublicNode / Last resort";
-          return j.result;
-        }catch(error){
-          lastError=error;
-          if(attempt<1){await sleep(350);continue;}
-          break;
-        }
-      }
-    }
-    throw lastError||new Error("Kein Solana RPC-Endpunkt verfügbar");
-  };
-  try{
     const signatures=await call("getSignaturesForAddress",[address,{limit:40}]);
     const selected=(signatures||[]).slice(0,12);
     let skippedTransactions=0;
