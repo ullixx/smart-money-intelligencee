@@ -1,7 +1,7 @@
 const valid=a=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
-const rpc=async(method,params)=>{const r=await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC-Fehler");return j.result;};
+const rpc=async(endpoints,method,params)=>{let last;for(let i=0;i<endpoints.length;i++){try{const r=await fetch(endpoints[i],{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC-Fehler");return {result:j.result,provider:i};}catch(e){last=e;}}throw last||new Error("Kein Solana RPC-Endpunkt verfügbar");};
 export async function onRequestGet({request,env}){
- const RPC=env?.SOLANA_RPC_URL||env?.SOLANA_RPC_FALLBACK_URL||"https://solana-rpc.publicnode.com";
+ const RPCS=[...new Set([env?.SOLANA_RPC_URL,env?.SOLANA_RPC_FALLBACK_URL,"https://solana-rpc.publicnode.com"].filter(Boolean))];let activeProvider="Not yet selected";
  const wallets=[...new Set((new URL(request.url).searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,10);
  if(!wallets.length||wallets.some(x=>!valid(x)))return Response.json({status:"UNAVAILABLE",error:"Mindestens eine gültige Solana-Wallet-Adresse erforderlich."},{status:400});
  try{
@@ -9,11 +9,11 @@ export async function onRequestGet({request,env}){
   for(const address of wallets){
    let signatures=[],analysed=0,skipped=0,buys=0,sells=0;
    const mintCounts=new Map(),buyMints=new Set();
-   try{signatures=await rpc("getSignaturesForAddress",[address,{limit:20,commitment:"confirmed"}]);}
+   try{const q=await rpc(RPCS,"getSignaturesForAddress",[address,{limit:20,commitment:"confirmed"}]);signatures=q.result;activeProvider=q.provider===0?"Primary RPC":RPCS[q.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";}
    catch(e){results.push({address,status:"UNAVAILABLE",error:e.message});continue;}
    for(const sig of (signatures||[]).slice(0,15)){
     try{
-     const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:2}]);
+     const q=await rpc(RPCS,"getTransaction",[sig.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:2}]);const tx=q.result;if(q.provider>0)activeProvider=RPCS[q.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";
      if(!tx?.meta||tx.meta.err){skipped++;continue;}
      const keys=tx.transaction?.message?.accountKeys||[],idx=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
      const sol=idx>=0?((tx.meta.postBalances?.[idx]||0)-(tx.meta.preBalances?.[idx]||0))/1e9:null;
@@ -36,6 +36,6 @@ export async function onRequestGet({request,env}){
   }
   const ranked=results.filter(x=>x.score!==null).sort((a,b)=>b.score-a.score);
   ranked.forEach((x,i)=>x.rank=i+1);
-  return Response.json({status:"PARTIAL",source:"Solana public RPC",checkedAt:new Date().toISOString(),walletsChecked:wallets.length,ranked:[...ranked,...results.filter(x=>x.score===null)],note:"Nur bis zu 15 der letzten 20 Signaturen je Wallet. BUY/SELL sind Heuristiken aus Token-Delta und SOL-Delta. Ein hoher Rang bedeutet mehr beobachtete Aktivität, nicht nachgewiesenen Gewinn, Insiderwissen oder Smart-Money-Qualität. Für belastbare Performance sind längere Historie und vollständige Swap-/Preisdekodierung nötig."},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,ranked:[...ranked,...results.filter(x=>x.score===null)],note:"Nur bis zu 15 der letzten 20 Signaturen je Wallet. BUY/SELL sind Heuristiken aus Token-Delta und SOL-Delta. Ein hoher Rang bedeutet mehr beobachtete Aktivität, nicht nachgewiesenen Gewinn, Insiderwissen oder Smart-Money-Qualität. Für belastbare Performance sind längere Historie und vollständige Swap-/Preisdekodierung nötig."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana public RPC",error:"Ranking nicht verfügbar",detail:e.message},{status:502});}
 }
