@@ -1,4 +1,4 @@
-const RPC = "https://api.mainnet-beta.solana.com";
+const RPC = "https://solana-rpc.publicnode.com";
 export async function onRequestGet({ request }) {
   const url=new URL(request.url),address=(url.searchParams.get("address")||"").trim();
   if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
