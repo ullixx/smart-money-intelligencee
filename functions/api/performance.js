@@ -58,10 +58,9 @@ export async function onRequestGet({request,env}){
     if(e.side==="BUY"){lots.push({amount:e.amount,price:e.priceUsd,time:e.time});if(e.priceUsd==null)unmatched++;}
     else {
      let remaining=e.amount;
-     if(e.priceUsd==null){unmatched++;continue;}
-     while(remaining>0&&lots.length){
+     while(remaining>1e-12&&lots.length){
       const lot=lots[0],qty=Math.min(remaining,lot.amount);
-      if(lot.price==null){unmatched++;}else{
+      if(lot.price==null||e.priceUsd==null){unmatched++;}else{
        const lotPnl=(e.priceUsd-lot.price)*qty;
        realized+=lotPnl;matched+=qty;
        if(lotPnl>0)profitableClosedLots++;
@@ -69,6 +68,7 @@ export async function onRequestGet({request,env}){
       remaining-=qty;lot.amount-=qty;
       if(lot.amount<=1e-12)lots.shift();
      }
+     if(e.priceUsd==null&&remaining<=1e-12){} 
      if(remaining>0)unmatched++;
     }
    }
