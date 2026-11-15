@@ -1,16 +1,16 @@
-const RPC="https://solana-rpc.publicnode.com";
 const GT="https://api.geckoterminal.com/api/v2";
 const headers={"accept":"application/json;version=20230203"};
 const json=async(url,opts={})=>{const r=await fetch(url,opts);if(!r.ok)throw new Error("HTTP "+r.status+" bei "+url);return r.json();};
-const rpc=async(method,params)=>{const j=await json(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(j.error)throw new Error(j.error.message||"RPC-Fehler");return j.result;};
-export async function onRequestGet({request}){
+const rpc=async(endpoint,method,params)=>{const j=await json(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(j.error)throw new Error(j.error.message||"RPC-Fehler");return j.result;};
+export async function onRequestGet({request,env}){
+  const RPC=env?.SOLANA_RPC_URL||env?.SOLANA_RPC_FALLBACK_URL||"https://solana-rpc.publicnode.com";
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse"},{status:400});
  try{
-  const sigs=await rpc("getSignaturesForAddress",[address,{limit:30}]),events=[],mints=new Set();let skippedTransactions=0,unclassifiedTransactions=0;
+  const sigs=await rpc(RPC,"getSignaturesForAddress",[address,{limit:30}]),events=[],mints=new Set();let skippedTransactions=0,unclassifiedTransactions=0;
   for(const sig of (sigs||[]).slice(0,25)){
    try{
-    const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
+    const tx=await rpc(RPC,"getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);
     if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
     const keys=tx.transaction?.message?.accountKeys||[],ix=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
     const sol=ix>=0?((tx.meta.postBalances?.[ix]||0)-(tx.meta.preBalances?.[ix]||0))/1e9:null;
@@ -50,7 +50,7 @@ export async function onRequestGet({request}){
   for(const [mint,arr] of byMint){
    arr.sort((a,b)=>a.time-b.time);const lots=[];let realized=0,matched=0,unmatched=0;
    for(const e of arr){
-    if(e.side==="BUY"){if(e.priceUsd==null){unmatched++;continue;}lots.push({amount:e.amount,price:e.priceUsd,time:e.time});}
+    if(e.side==="BUY"){lots.push({amount:e.amount,price:e.priceUsd,time:e.time});if(e.priceUsd==null)unmatched++;}
     else {
      let remaining=e.amount;
      if(e.priceUsd==null){unmatched++;continue;}
@@ -65,6 +65,6 @@ export async function onRequestGet({request}){
    results.push({mint,buys:arr.filter(x=>x.side==="BUY").length,sells:arr.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?realized:null,profitableClosedLots:realized>0?1:0,openLots:lots.length,unmatchedEvents:unmatched,events:arr.map(({mint,...x})=>x),priceSource:priceMap[mint]?.status||"UNAVAILABLE",poolUrl:priceMap[mint]?.poolUrl||null});
   }
   const closed=results.filter(x=>x.estimatedRealizedPnlUsd!==null),wins=closed.filter(x=>x.estimatedRealizedPnlUsd>0).length;
-  return Response.json({status:"PARTIAL",source:"Solana RPC + DEX Screener + GeckoTerminal OHLCV",address,checkedAt:new Date().toISOString(),events:priced.length,signaturesReceived:(sigs||[]).length,transactionsRequested:Math.min(25,(sigs||[]).length),skippedTransactions,unclassifiedTransactions,coverage:Math.round((Math.min(25,(sigs||[]).length)-skippedTransactions-unclassifiedTransactions)/Math.max(1,Math.min(25,(sigs||[]).length))*100),historyStatus:(sigs||[]).length>=25?"LIMITED_TO_RECENT_25":"AVAILABLE_SIGNATURE_WINDOW",tokenResults:results,summary:{tokens:results.length,pricedEvents:priced.filter(x=>x.priceUsd!==null).length,unpricedEvents:priced.filter(x=>x.priceUsd===null).length,closedTokens:closed.length,positiveTokenPnlTokens:wins,tokenLevelPositiveShare:closed.length?wins/closed.length:null},note:"Nur bis zu 25 jüngste Transaktionen und bis zu 8 Token. Übersprungene oder nicht dekodierbare Transaktionen werden separat ausgewiesen. FIFO-PnL ist eine Näherung aus Stundenkerzen-Schlusskursen; keine Gebühren-/Slippage-/MEV-/Steuerberechnung. Unklassifizierte Bewegungen werden separat gezählt. Unbepreiste BUYs blockieren die FIFO-Zuordnung ihrer späteren SELL-Mengen, statt falsche Gewinne zu erzeugen. Trefferquote auf Token-Ebene, keine Trade-Trefferquote."},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({status:"PARTIAL",source:"Configured Solana RPC + DEX Screener + GeckoTerminal OHLCV",address,checkedAt:new Date().toISOString(),events:priced.length,signaturesReceived:(sigs||[]).length,transactionsRequested:Math.min(25,(sigs||[]).length),skippedTransactions,unclassifiedTransactions,coverage:Math.round((Math.min(25,(sigs||[]).length)-skippedTransactions-unclassifiedTransactions)/Math.max(1,Math.min(25,(sigs||[]).length))*100),historyStatus:(sigs||[]).length>=25?"LIMITED_TO_RECENT_25":"AVAILABLE_SIGNATURE_WINDOW",tokenResults:results,summary:{tokens:results.length,pricedEvents:priced.filter(x=>x.priceUsd!==null).length,unpricedEvents:priced.filter(x=>x.priceUsd===null).length,closedTokens:closed.length,positiveTokenPnlTokens:wins,tokenLevelPositiveShare:closed.length?wins/closed.length:null},note:"Nur bis zu 25 jüngste Transaktionen und bis zu 8 Token. Übersprungene oder nicht dekodierbare Transaktionen werden separat ausgewiesen. FIFO-PnL ist eine Näherung aus Stundenkerzen-Schlusskursen; keine Gebühren-/Slippage-/MEV-/Steuerberechnung. Unklassifizierte Bewegungen werden separat gezählt. Unbepreiste BUYs blockieren die FIFO-Zuordnung ihrer späteren SELL-Mengen, statt falsche Gewinne zu erzeugen. Trefferquote auf Token-Ebene, keine Trade-Trefferquote."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",error:"Historische Performance konnte nicht berechnet werden",detail:e.message,tokenResults:[]},{status:502});}
 }
