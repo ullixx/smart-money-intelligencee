@@ -1,3 +1,4 @@
+import { createSolanaRpc } from "../lib/solana-rpc.js";
 const DEX_PROGRAM_IDS=new Set([
   "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
   "675kPX9MHTjS2zt1qfr1NYHuzeL7N9T8r8Z3F5V5",
@@ -23,16 +24,10 @@ const hasKnownDexInstruction=tx=>{
 export async function onRequestGet({ request, env }) {
   const url=new URL(request.url),address=(url.searchParams.get("address")||"").trim();
   if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
-  const primaryRpc=env?.SOLANA_RPC_URL||"https://solana-rpc.publicnode.com";
-  const fallbackRpc=env?.SOLANA_RPC_FALLBACK_URL||"https://solana-rpc.publicnode.com";
-  const rpcEndpoints=[...new Set([primaryRpc,fallbackRpc,"https://solana-rpc.publicnode.com"].filter(Boolean))];
+  const rpc=createSolanaRpc(env);
+  const call=rpc.call;
   let rpcProvider="Not yet selected";
-  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-  const call=async(method,params)=>{
-    let lastError;
-    for(const endpoint of rpcEndpoints){
-      for(let attempt=0;attempt<2;attempt++){
-        try{
+  try{
           const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});
           if(r.status===429||r.status>=500){
             lastError=new Error("Solana RPC HTTP "+r.status);
@@ -115,6 +110,7 @@ export async function onRequestGet({ request, env }) {
     const topTokens=tokenLedger.slice().sort((a,b)=>b.transactions-a.transactions).slice(0,5).map(t=>({mint:t.mint,transactions:t.transactions,received:t.received,sent:t.sent,netAmount:t.netAmount,share:transactions.length?t.transactions/transactions.length:0}));
     const buySellTotal=buys+sells;
     const profile={firstObserved:dated.length?new Date(dated[0]).toISOString():null,lastObserved:dated.length?new Date(dated[dated.length-1]).toISOString():null,activeDays:new Set(dated.map(t=>new Date(t).toISOString().slice(0,10))).size,buySellRatio:buySellTotal?buys/buySellTotal:null,topTokens,topTokenShare:topTokens.length?topTokens[0].share:0,repeatTokenCount:repeatTokens,knownDexShare:successful.length?successful.filter(t=>t.classification==="DEX_SWAP_DETECTED").length/successful.length:0};
+    rpcProvider=rpc.providerLabel();
     return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider,address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,requestedTransactions:selected.length,skippedTransactions,skipReasons,rpcErrorDetails,coverage:Math.round(transactions.length/Math.max(1,selected.length)*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,dexSwapsDetected:successful.filter(t=>t.classification==="DEX_SWAP_DETECTED").length,distinctTokens:tokenLedger.length,netSol,repeatTokens,repeatedBuyTokens:smartMoneySignals.length,burstBuyTokens:smartMoneySignals.filter(x=>x.burstWithin30m).length},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},walletProfile:profile,tokenLedger,smartMoneySignals,transactions,note:"Pro Anfrage maximal 12 der neuesten Signaturen, um Cloudflare-Subrequest-Limits zu vermeiden. skipReasons unterscheidet RPC-Fehler, nicht gefundene Transaktionen, fehlende Metadaten und fehlgeschlagene Transaktionen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Bekannte DEX-Programm-IDs plus gegenläufige Token-Salden werden als DEX_SWAP_DETECTED markiert; unbekannte Router/Programme bleiben Kandidaten. Das bestätigt die DEX-Ausführung, aber nicht automatisch den wirtschaftlichen Swap-Pfad oder Ausführungspreis. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
-  }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana RPC mit automatischem Failover",rpcProvider,address,checkedAt:new Date().toISOString(),error:"RPC momentan nicht erreichbar oder rate-limited",detail:e.message,transactions:[]},{status:502});}
+  }catch(e){rpcProvider=rpc.providerLabel();return Response.json({status:"UNAVAILABLE",source:"Solana RPC mit automatischem Failover",rpcProvider,address,checkedAt:new Date().toISOString(),error:"RPC momentan nicht erreichbar oder rate-limited",detail:e.message,transactions:[]},{status:502});}
 }
