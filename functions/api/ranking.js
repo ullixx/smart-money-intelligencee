@@ -1,4 +1,4 @@
-const RPC="https://api.mainnet-beta.solana.com";
+const RPC="https://solana-rpc.publicnode.com";
 const valid=a=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
 const rpc=async(method,params)=>{const r=await fetch(RPC,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC-Fehler");return j.result;};
 export async function onRequestGet({request}){
