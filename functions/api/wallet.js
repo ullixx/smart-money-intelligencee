@@ -20,7 +20,7 @@ export async function onRequestGet({ request }) {
         else if(tokenChanges.length===1&&sent.length===1&&solDelta!==null&&solDelta>0){classification="SELL_INFERRED";classificationBasis="Token-Abgang + SOL-Zugang";}
         else if(tokenChanges.length>0){classification="TOKEN_MOVEMENT";classificationBasis="Token-Bewegung ohne eindeutiges SOL-Gegenstück";}
         transactions.push({signature:item.signature,time:item.blockTime?new Date(item.blockTime*1000).toISOString():null,slot:item.slot??null,solDelta,tokenChanges,classification,classificationBasis,feeSol:(tx.meta.fee||0)/1e9,success:!tx.meta.err});
-      }catch(_){}
+      }catch(_){skippedTransactions++;}
     }
     const successful=transactions.filter(t=>t.success),buys=successful.filter(t=>t.classification==="BUY_INFERRED").length,sells=successful.filter(t=>t.classification==="SELL_INFERRED").length;
     const ledgerMap=new Map();
