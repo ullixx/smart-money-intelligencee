@@ -1,43 +1,43 @@
+const SYSTEM_PROGRAM="11111111111111111111111111111111";
 export async function onRequestGet({request,env}) {
  const RPCS=[...new Set([env?.SOLANA_RPC_URL,env?.SOLANA_RPC_FALLBACK_URL,"https://solana-rpc.publicnode.com"].filter(Boolean))];let activeProvider="Not yet selected";
- const u=new URL(request.url);
- const wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
- if(wallets.length<2||wallets.some(a=>!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a))) return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
+ const u=new URL(request.url),wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
+ if(wallets.length<2||wallets.some(a=>!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)))return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
  const rpc=async(method,params)=>{let last;for(let i=0;i<RPCS.length;i++){try{const r=await fetch(RPCS[i],{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC error");activeProvider=i===0?"Primary RPC":RPCS[i]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";return j.result;}catch(e){last=e;}}throw last||new Error("Kein Solana RPC-Endpunkt verfügbar");};
  try{
-  const events=[];let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
+  const events=[],funding=[],walletStats={};let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
   for(const wallet of wallets){
-   const sigs=await rpc("getSignaturesForAddress",[wallet,{limit:8}]);
+   const sigs=await rpc("getSignaturesForAddress",[wallet,{limit:10}]);walletStats[wallet]={requested:Math.min(8,(sigs||[]).length),analysed:0};
    for(const sig of (sigs||[]).slice(0,8)){
     transactionsRequested++;
     try{
      const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);
      if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
-     transactionsAnalysed++;
-     const keys=tx.transaction?.message?.accountKeys||[],walletIndex=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===wallet);
+     transactionsAnalysed++;walletStats[wallet].analysed++;
+     const keys=tx.transaction?.message?.accountKeys||[],loaded=[...(tx.meta.loadedAddresses?.writable||[]),...(tx.meta.loadedAddresses?.readonly||[])],allKeys=[...keys,...loaded];
+     const keyString=k=>typeof k==="string"?k:k?.pubkey;
+     const walletIndex=allKeys.findIndex(k=>keyString(k)===wallet);
      const solDelta=walletIndex>=0?((tx.meta.postBalances?.[walletIndex]||0)-(tx.meta.preBalances?.[walletIndex]||0))/1e9:null;
      const deltas=new Map();
      for(const b of tx.meta.preTokenBalances||[])if(b.owner===wallet)deltas.set(b.mint,{mint:b.mint,delta:-Number(b.uiTokenAmount?.uiAmountString||0)});
      for(const b of tx.meta.postTokenBalances||[])if(b.owner===wallet){const v=deltas.get(b.mint)||{mint:b.mint,delta:0};v.delta+=Number(b.uiTokenAmount?.uiAmountString||0);deltas.set(b.mint,v);}
-     for(const v of deltas.values())if(Number.isFinite(v.delta)&&v.delta>0&&solDelta!==null&&solDelta<0)events.push({wallet,mint:v.mint,time:sig.blockTime,signature:sig.signature,amount:v.delta,solDelta});
+     const positive=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta>0);
+     const negative=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta<0);
+     for(const v of positive)events.push({wallet,mint:v.mint,time:sig.blockTime,signature:sig.signature,amount:v.delta,solDelta,kind:solDelta!==null&&solDelta<0?"BUY_CANDIDATE":"TOKEN_RECEIPT"});
+     const instructions=[...(tx.transaction?.message?.instructions||[]),...(tx.meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
+     for(const ix of instructions){const parsed=ix.parsed,info=parsed?.info;if(ix.program==="system"&&parsed?.type==="transfer"&&info?.destination===wallet&&info?.source&&info.source!==wallet){funding.push({wallet,funder:info.source,time:sig.blockTime,lamports:Number(info.lamports)||0,signature:sig.signature});}}
     }catch(_){skippedTransactions++;}
    }
   }
   const byMint=new Map();for(const e of events){if(!byMint.has(e.mint))byMint.set(e.mint,[]);byMint.get(e.mint).push(e);}
   const clusters=[];
-  for(const [mint,ev] of byMint){
-   ev.sort((a,b)=>a.time-b.time);
-   for(let i=0;i<ev.length;i++){
-    const group=ev.filter(x=>Math.abs(x.time-ev[i].time)<=1800);
-    const unique=[...new Set(group.map(x=>x.wallet))];
-    if(unique.length>=2&&!clusters.some(c=>c.mint===mint&&Math.abs(c.firstSeen-ev[i].time)<=1800)){
-     const first=Math.min(...group.map(x=>x.time)),last=Math.max(...group.map(x=>x.time));
-     clusters.push({mint,walletCount:unique.length,wallets:unique.map(a=>a.slice(0,5)+"…"+a.slice(-5)),firstSeen:new Date(first*1000).toISOString(),windowMinutes:Math.round((last-first)/60),events:group.length,signatures:[...new Set(group.map(x=>x.signature))].slice(0,5)});
-    }
-   }
-  }
-  clusters.sort((a,b)=>b.walletCount-a.walletCount||b.events-a.events);
-  const overlap=[...byMint.entries()].map(([mint,ev])=>({mint,walletCount:new Set(ev.map(x=>x.wallet)).size})).filter(x=>x.walletCount>=2).sort((a,b)=>b.walletCount-a.walletCount);
-  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,inferredBuyCandidates:events.length,clusters,sharedTokens:overlap,note:"Erfasst werden positive Token-Bewegungen bei gleichzeitigem SOL-Abgang. Das ist nur ein Kaufkandidat: Gebühren, Rent, Token-Transfers und Swap-Routen können die Zuordnung verfälschen. Zeitliche Überschneidungen beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen."},{headers:{"Cache-Control":"no-store"}});
+  for(const [mint,ev] of byMint){ev.sort((a,b)=>a.time-b.time);for(const e of ev){const group=ev.filter(x=>Math.abs(x.time-e.time)<=1800),unique=[...new Set(group.map(x=>x.wallet))];if(unique.length<2)continue;const first=Math.min(...group.map(x=>x.time)),last=Math.max(...group.map(x=>x.time));if(clusters.some(c=>c.mint===mint&&c.wallets.some(w=>unique.includes(w))&&Math.abs(Date.parse(c.firstSeen)/1000-first)<=1800))continue;clusters.push({mint,walletCount:unique.length,wallets:unique,firstSeen:new Date(first*1000).toISOString(),windowMinutes:Math.round((last-first)/60),events:group.length,buyCandidateCount:group.filter(x=>x.kind==="BUY_CANDIDATE").length,signatures:[...new Set(group.map(x=>x.signature))].slice(0,5)});}}
+  clusters.sort((a,b)=>b.walletCount-a.walletCount||b.buyCandidateCount-a.buyCandidateCount||b.events-a.events);
+  const sharedTokens=[...byMint.entries()].map(([mint,ev])=>({mint,walletCount:new Set(ev.map(x=>x.wallet)).size,wallets:[...new Set(ev.map(x=>x.wallet))],buyCandidates:ev.filter(x=>x.kind==="BUY_CANDIDATE").length})).filter(x=>x.walletCount>=2).sort((a,b)=>b.walletCount-a.walletCount);
+  const funderMap=new Map();for(const f of funding){if(!funderMap.has(f.funder))funderMap.set(f.funder,[]);funderMap.get(f.funder).push(f);}
+  const sharedFunders=[...funderMap.entries()].map(([funder,items])=>({funder,walletCount:new Set(items.map(x=>x.wallet)).size,wallets:[...new Set(items.map(x=>x.wallet))],transfers:items.length,totalSol:items.reduce((n,x)=>n+x.lamports/1e9,0),firstSeen:new Date(Math.min(...items.map(x=>x.time))*1000).toISOString(),lastSeen:new Date(Math.max(...items.map(x=>x.time))*1000).toISOString()})).filter(x=>x.walletCount>=2).sort((a,b)=>b.walletCount-a.walletCount||b.transfers-a.transfers);
+  const relationships=[];
+  for(const c of clusters){const funder=sharedFunders.find(f=>c.wallets.every(w=>f.wallets.includes(w)));const score=35+(funder?45:0)+(c.buyCandidateCount>=2?20:0);relationships.push({...c,evidenceScore:Math.min(100,score),evidenceLevel:funder?"MULTIPLE_SIGNALS":"TIME_OVERLAP_ONLY",sharedFunder:funder?.funder||null,interpretation:funder?"Gemeinsamer Funding-Absender plus zeitliche Token-Überschneidung":"Zeitliche Token-Überschneidung ohne gemeinsamen Funding-Nachweis"});}
+  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,walletStats,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,buyCandidates:events.filter(x=>x.kind==="BUY_CANDIDATE").length,clusters:relationships,sharedTokens,sharedFunders,note:"Untersucht werden maximal 8 aktuelle Transaktionen je Wallet. Funding-Beziehungen beruhen auf expliziten eingehenden System-Transfers in diesem Stichprobenfenster; Börsen, Relayer und gemeinsame Dienste können denselben Absender erklären. Zeitliche Überschneidungen und gemeinsame Funding-Absender beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen. Token-Zugänge sind Kaufkandidaten, keine bestätigten Swaps."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",error:"Solana RPC nicht erreichbar oder rate-limited",detail:e.message,clusters:[]},{status:502});}
 }
