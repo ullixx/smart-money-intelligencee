@@ -209,6 +209,13 @@ async function inspectEntry(address){
 }
 document.getElementById("entryForm").addEventListener("submit",e=>{e.preventDefault();const a=document.getElementById("entryAddress").value.trim();if(a)inspectEntry(a);});
 
+document.getElementById("walletForm").addEventListener("submit",event=>{
+ event.preventDefault();
+ const address=document.getElementById("walletAddress").value.trim();
+ if(!address)return;
+ setActiveView("wallets");
+ inspectWallet(address);
+});
 function setActiveView(view){document.querySelectorAll("section[data-view]").forEach(section=>{section.hidden=section.dataset.view!==view;});document.querySelectorAll(".navtab").forEach(tab=>{const active=tab.dataset.target===view;tab.classList.toggle("active",active);tab.setAttribute("aria-current",active?"page":"false");});window.scrollTo({top:0,behavior:"instant"});}
 document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
 setActiveView("discovery");
