@@ -24,14 +24,14 @@ footer{margin-top:26px;color:var(--muted);font-size:11px}
 </style>
 </head>
 <body>
-<header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status">● SYSTEM ONLINE · DEMO UI</div></header>
+<header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status">● API WIRD GEPRÜFT</div></header>
 <main>
 <div class="eyebrow">Solana intelligence terminal</div>
 <h1>Read the flow.<br>Understand the market.</h1>
 <p class="sub">Ein Analyse-Terminal für Solana-Meme-Coins. Wallet-Bewegungen, Marktaktivität und Risiken – mit klarer Kennzeichnung der Datenqualität.</p>
 <div class="grid">
 <div class="metric"><small>Tracked wallets</small><strong>—</strong><em>Quelle noch nicht verbunden</em></div>
-<div class="metric"><small>New tokens</small><strong>—</strong><em>Kein Live-Feed verbunden</em></div>
+<div class="metric"><small>Solana profile/boost tokens</small><strong id="tokenCount">—</strong><em id="tokenState">Wird geladen</em></div>
 <div class="metric"><small>Smart money flow</small><strong>—</strong><em>Keine Live-Daten</em></div>
 <div class="metric"><small>Market pulse</small><strong>—</strong><em>Wartet auf Datenquelle</em></div>
 </div>
@@ -54,9 +54,16 @@ footer{margin-top:26px;color:var(--muted);font-size:11px}
 <div><b style="color:#f4c879">PARTIAL</b>Unvollständige Daten</div>
 <div><b style="color:var(--red)">UNAVAILABLE</b>Keine Daten verfügbar</div>
 </div>
-<div class="notice">Noch keine Marktdatenquelle verbunden. Deshalb werden Kennzahlen bewusst als nicht verfügbar angezeigt – es werden keine Werte erfunden.</div>
+<div class="notice">LIVE = direkt gelieferte Marktdaten. PARTIAL = Profil-/Boost-Auswahl, keine vollständige Liste aller neuen Token.</div>
 </section>
 <footer>Smart Money Intelligence · Initial interface · Datenanbindung folgt</footer>
 </main>
-</body>
+<script>
+const fmt=v=>v==null?"—":Number(v).toLocaleString("de-DE",{maximumFractionDigits:2});
+async function loadDiscovery(){const badge=document.getElementById("connection"),state=document.getElementById("feedStatus"),rows=document.getElementById("tokenRows"),note=document.getElementById("feedNote");try{const r=await fetch("/api/discovery");const d=await r.json();if(!r.ok)throw new Error(d.error||"API-Fehler");badge.textContent="● API VERBUNDEN";state.textContent=d.status+" · "+new Date(d.timestamp).toLocaleTimeString("de-DE");document.getElementById("tokenCount").textContent=d.tokens.length;document.getElementById("tokenState").textContent="DEX Screener · "+d.status;rows.innerHTML=d.tokens.length?d.tokens.map(t=>'<tr style="border-top:1px solid var(--line)"><td style="padding:11px 8px"><b>'+(t.name||"Unbekannt")+'</b><br><span style="color:var(--muted)">'+(t.symbol||t.address.slice(0,8)+"…")+'</span></td><td>
+</html>+fmt(t.priceUsd)+'</td><td>
+</html>+fmt(t.liquidityUsd)+'</td><td>
+</html>+fmt(t.volume24h)+'</td><td>'+(t.buys24h??"—")+' / '+(t.sells24h??"—")+'</td><td>'+(t.hasMarketPair?"LIVE":"PARTIAL")+'</td></tr>').join(""):'<tr><td colspan="6" style="padding:14px">Keine Solana-Treffer in den aktuellen Listen.</td></tr>';note.textContent=d.note+" Datenzeit: "+new Date(d.timestamp).toLocaleString("de-DE");}catch(e){badge.textContent="● API NICHT ERREICHBAR";state.textContent="UNAVAILABLE";rows.innerHTML='<tr><td colspan="6" style="padding:14px;color:var(--red)">Datenquelle nicht erreichbar. Keine Live-Daten verfügbar.</td></tr>';note.textContent=e.message;}}
+loadDiscovery();setInterval(loadDiscovery,60000);
+</script></body>
 </html>
