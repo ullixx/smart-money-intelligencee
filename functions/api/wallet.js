@@ -9,12 +9,12 @@ export async function onRequestGet({ request, env }) {
   const call=async(method,params)=>{
     let lastError;
     for(const endpoint of rpcEndpoints){
-      for(let attempt=0;attempt<3;attempt++){
+      for(let attempt=0;attempt<2;attempt++){
         try{
           const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});
           if(r.status===429||r.status>=500){
             lastError=new Error("Solana RPC HTTP "+r.status);
-            if(attempt<2){await sleep(350*(2**attempt));continue;}
+            if(attempt<1){await sleep(350);continue;}
             break;
           }
           if(!r.ok)throw new Error("Solana RPC HTTP "+r.status);
@@ -23,7 +23,7 @@ export async function onRequestGet({ request, env }) {
           return j.result;
         }catch(error){
           lastError=error;
-          if(attempt<2){await sleep(350*(2**attempt));continue;}
+          if(attempt<1){await sleep(350);continue;}
           break;
         }
       }
@@ -32,13 +32,13 @@ export async function onRequestGet({ request, env }) {
   };
   try{
     const signatures=await call("getSignaturesForAddress",[address,{limit:40}]);
-    const selected=(signatures||[]).slice(0,25);
+    const selected=(signatures||[]).slice(0,12);
     let skippedTransactions=0;
     const skipReasons={rpcError:0,transactionNotFound:0,missingMetadata:0,failedTransaction:0};
     const rpcErrorDetails={};
     const analyse=async item=>{
       try{
-        const tx=await call("getTransaction",[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
+        const tx=await call("getTransaction",[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);
         if(!tx){skipReasons.transactionNotFound++;return null;}
         if(!tx.meta){skipReasons.missingMetadata++;return null;}
         if(tx.meta.err){skipReasons.failedTransaction++;return null;}
@@ -71,6 +71,6 @@ export async function onRequestGet({ request, env }) {
     const activityScore=Math.min(100,successful.length*3+buys*2+sells*2+repeatTokens*5);
     const activityLabel=successful.length<5?"Zu wenig Daten":activityScore>=65?"Hohe beobachtete Aktivität":activityScore>=30?"Mittlere beobachtete Aktivität":"Geringe beobachtete Aktivität";
     const netSol=successful.reduce((sum,t)=>sum+(t.solDelta||0),0);
-    return Response.json({status:"PARTIAL",source:rpcProvider,address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,skippedTransactions,skipReasons,rpcErrorDetails,coverage:Math.round(transactions.length/Math.max(1,Math.min(25,(signatures||[]).length))*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,distinctTokens:tokenLedger.length,netSol,repeatTokens},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},tokenLedger,transactions,note:"Nur die letzten bis zu 25 Signaturen. skipReasons unterscheidet RPC-Fehler, nicht gefundene Transaktionen, fehlende Metadaten und fehlgeschlagene Transaktionen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Transfers können wie Token-zu-Token-Swaps aussehen; SWAP_CANDIDATE ist ausdrücklich keine bestätigte DEX-Ausführung. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
+    return Response.json({status:"PARTIAL",source:rpcProvider,address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,requestedTransactions:selected.length,skippedTransactions,skipReasons,rpcErrorDetails,coverage:Math.round(transactions.length/Math.max(1,selected.length)*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,distinctTokens:tokenLedger.length,netSol,repeatTokens},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},tokenLedger,transactions,note:"Pro Anfrage maximal 12 der neuesten Signaturen, um Cloudflare-Subrequest-Limits zu vermeiden. skipReasons unterscheidet RPC-Fehler, nicht gefundene Transaktionen, fehlende Metadaten und fehlgeschlagene Transaktionen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Transfers können wie Token-zu-Token-Swaps aussehen; SWAP_CANDIDATE ist ausdrücklich keine bestätigte DEX-Ausführung. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
   }catch(e){return Response.json({status:"UNAVAILABLE",source:rpcProvider,address,checkedAt:new Date().toISOString(),error:"RPC momentan nicht erreichbar oder rate-limited",detail:e.message,transactions:[]},{status:502});}
 }
