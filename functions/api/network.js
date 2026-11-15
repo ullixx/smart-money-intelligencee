@@ -8,7 +8,8 @@ export async function onRequestGet({request}) {
   const events=[];let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
   for(const wallet of wallets){
    const sigs=await rpc("getSignaturesForAddress",[wallet,{limit:8}]);
-   for(const sig of (sigs||[]).slice(0,8)){\n    transactionsRequested++;
+   for(const sig of (sigs||[]).slice(0,8)){
+    transactionsRequested++;
     try{
      const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
      if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}\n     transactionsAnalysed++;
