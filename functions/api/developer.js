@@ -13,7 +13,7 @@ export async function onRequestGet({request,env}){
   if(!parsed||parsed.decimals===undefined)throw new Error("Adresse ist kein lesbarer SPL-Token-Mint");
   if(!signatureData?.length)return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,address,firstVisibleTransaction:null,mintAuthority:parsed.mintAuthority||null,freezeAuthority:parsed.freezeAuthority||null,note:"Für diese Mint-Adresse wurden keine Signaturen geliefert."});
   const oldest=signatureData[signatureData.length-1];
-  const tq=await rpc(RPCS,"getTransaction",[oldest.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:0}]);const tx=tq.result;if(tq.provider>0)activeProvider="Fallback RPC";
+  const tq=await rpc(RPCS,"getTransaction",[oldest.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:2}]);const tx=tq.result;if(tq.provider>0)activeProvider="Fallback RPC";
   const keys=tx?.transaction?.message?.accountKeys||[];
   const feePayer=keys.length?(typeof keys[0]==="string"?keys[0]:keys[0].pubkey):null;
   const instructions=tx?.transaction?.message?.instructions||[];
