@@ -65,7 +65,10 @@ export async function onRequestGet({ request, env }) {
         if(!tx){skipReasons.transactionNotFound++;return null;}
         if(!tx.meta){skipReasons.missingMetadata++;return null;}
         if(tx.meta.err){skipReasons.failedTransaction++;return null;}
-        const keys=tx.transaction?.message?.accountKeys||[],index=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
+        const staticKeys=tx.transaction?.message?.accountKeys||[];
+        const loadedKeys=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])];
+        const keys=[...staticKeys,...loadedKeys];
+        const index=keys.findIndex(k=>(typeof k==="string"?k:k?.pubkey)===address);
         const solDelta=index>=0?((tx.meta.postBalances?.[index]||0)-(tx.meta.preBalances?.[index]||0))/1e9:null;
         const changes=new Map();
         for(const b of tx.meta.preTokenBalances||[])if(b.owner===address)changes.set(b.mint,{mint:b.mint,amount:-Number(b.uiTokenAmount?.uiAmountString||0)});
