@@ -1,5 +1,5 @@
-const RPC="https://solana-rpc.publicnode.com";
-export async function onRequestGet({request}) {
+export async function onRequestGet({request,env}) {
+ const RPC=env?.SOLANA_RPC_URL||env?.SOLANA_RPC_FALLBACK_URL||"https://solana-rpc.publicnode.com";
  const u=new URL(request.url);
  const wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
  if(wallets.length<2||wallets.some(a=>!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a))) return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
@@ -11,7 +11,7 @@ export async function onRequestGet({request}) {
    for(const sig of (sigs||[]).slice(0,8)){
     transactionsRequested++;
     try{
-     const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
+     const tx=await rpc("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);
      if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
      transactionsAnalysed++;
      const keys=tx.transaction?.message?.accountKeys||[],walletIndex=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===wallet);
