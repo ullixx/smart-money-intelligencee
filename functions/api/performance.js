@@ -1,7 +1,7 @@
+import { createSolanaRpc } from "../lib/solana-rpc.js";
 const GT="https://api.geckoterminal.com/api/v2";
 const headers={"accept":"application/json;version=20230203"};
 const json=async(url,opts={})=>{const r=await fetch(url,opts);if(!r.ok)throw new Error("HTTP "+r.status+" bei "+url);return r.json();};
-const rpc=async(endpoints,method,params)=>{let last;for(let i=0;i<endpoints.length;i++){try{const j=await json(endpoints[i],{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(j.error)throw new Error(j.error.message||"RPC-Fehler");return {result:j.result,provider:i};}catch(e){last=e;}}throw last||new Error("Kein Solana RPC-Endpunkt verfügbar");};
 const DEX_PROGRAM_IDS=new Set(["JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4","675kPX9MHTjS2zt1qfr1NYHuzeL7N9T8r8Z3F5V5","whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc","LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo","6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"]);
 const hasKnownDexInstruction=tx=>{
  const keys=tx.transaction?.message?.accountKeys||[],loaded=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])];
@@ -10,14 +10,14 @@ const hasKnownDexInstruction=tx=>{
  return instructions.some(ix=>{const id=ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null);return typeof id==="string"&&DEX_PROGRAM_IDS.has(id);});
 };
 export async function onRequestGet({request,env}){
-  const RPCS=[...new Set([env?.SOLANA_RPC_URL,env?.SOLANA_RPC_FALLBACK_URL,"https://solana-rpc.publicnode.com"].filter(Boolean))];let activeProvider="Not yet selected";
+  const rpcClient=createSolanaRpc(env);const RPCS=[];const rpc=async(_endpoints,method,params)=>({result:await rpcClient.call(method,params),provider:0});let activeProvider="Not yet selected";
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse"},{status:400});
  try{
-  const sq=await rpc(RPCS,"getSignaturesForAddress",[address,{limit:30}]);const sigs=sq.result;activeProvider=sq.provider===0?"Primary RPC":RPCS[sq.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";const events=[],mints=new Set();let skippedTransactions=0,unclassifiedTransactions=0;
+  const sq=await rpc(RPCS,"getSignaturesForAddress",[address,{limit:30}]);const sigs=sq.result;activeProvider=rpcClient.providerLabel();const events=[],mints=new Set();let skippedTransactions=0,unclassifiedTransactions=0;
   for(const sig of (sigs||[]).slice(0,25)){
    try{
-    const tq=await rpc(RPCS,"getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);const tx=tq.result;if(tq.provider>0)activeProvider=RPCS[tq.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";
+    const tq=await rpc(RPCS,"getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);const tx=tq.result;activeProvider=rpcClient.providerLabel();
     if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
     const staticKeys=tx.transaction?.message?.accountKeys||[];
     const loadedKeys=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])];
@@ -84,5 +84,5 @@ export async function onRequestGet({request,env}){
   }
   const closed=results.filter(x=>x.estimatedRealizedPnlUsd!==null),wins=closed.filter(x=>x.estimatedRealizedPnlUsd>0).length;
   return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover + DEX Screener + GeckoTerminal OHLCV",rpcProvider:activeProvider,address,checkedAt:new Date().toISOString(),events:priced.length,signaturesReceived:(sigs||[]).length,transactionsRequested:Math.min(25,(sigs||[]).length),skippedTransactions,unclassifiedTransactions,coverage:Math.round((Math.min(25,(sigs||[]).length)-skippedTransactions-unclassifiedTransactions)/Math.max(1,Math.min(25,(sigs||[]).length))*100),historyStatus:(sigs||[]).length>=25?"LIMITED_TO_RECENT_25":"AVAILABLE_SIGNATURE_WINDOW",tokenResults:results,summary:{tokens:results.length,pricedEvents:priced.filter(x=>x.priceUsd!==null).length,unpricedEvents:priced.filter(x=>x.priceUsd===null).length,closedTokens:closed.length,positiveTokenPnlTokens:wins,tokenLevelPositiveShare:closed.length?wins/closed.length:null},note:"Nur bis zu 25 jüngste Transaktionen und bis zu 8 Token. Übersprungene oder nicht dekodierbare Transaktionen werden separat ausgewiesen. FIFO-PnL ist eine Näherung aus Stundenkerzen-Schlusskursen; keine Gebühren-/Slippage-/MEV-/Steuerberechnung. Unklassifizierte Bewegungen werden separat gezählt. Unbepreiste BUYs blockieren die FIFO-Zuordnung ihrer späteren SELL-Mengen, statt falsche Gewinne zu erzeugen. Trefferquote auf Token-Ebene, keine Trade-Trefferquote."},{headers:{"Cache-Control":"no-store"}});
- }catch(e){return Response.json({status:"UNAVAILABLE",error:"Historische Performance konnte nicht berechnet werden",detail:e.message,tokenResults:[]},{status:502});}
+ }catch(e){activeProvider=rpcClient.providerLabel();return Response.json({status:"UNAVAILABLE",rpcProvider:activeProvider,error:"Historische Performance konnte nicht berechnet werden",detail:e.message,tokenResults:[]},{status:502});}
 }
