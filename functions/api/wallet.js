@@ -74,10 +74,10 @@ export async function onRequestGet({ request, env }) {
         const received=tokenChanges.filter(x=>x.amount>0),sent=tokenChanges.filter(x=>x.amount<0);
         let classification="UNCLEAR",classificationBasis="Nicht eindeutig";
         const dexInstructionDetected=hasKnownDexInstruction(tx);
-        if(dexInstructionDetected&&received.length>0&&sent.length>0){classification="DEX_SWAP_DETECTED";classificationBasis="Bekannte DEX-Programm-ID + mindestens ein Token-Zugang und Token-Abgang; wirtschaftlicher Pfad wird aus Salden rekonstruiert";}
+        if(dexInstructionDetected&&((received.length>0&&sent.length>0)||(received.length>0&&solDelta!==null&&solDelta<0)||(sent.length>0&&solDelta!==null&&solDelta>0))){classification="DEX_SWAP_DETECTED";classificationBasis="Bekannte DEX-Programm-ID + gegenläufige Token-/SOL-Salden; Token-Gegenleistung wird aus Wallet-Salden rekonstruiert";}
         else if(received.length>0&&sent.length>0){classification="SWAP_CANDIDATE";classificationBasis="Gegenläufige Token-Salden; unbekannter oder nicht bestätigter Router, daher Swap-Kandidat";}
-        else if(received.length===1&&sent.length===0&&solDelta!==null&&solDelta<0){classification="BUY_INFERRED";classificationBasis="Token-Zugang + SOL-Abgang; Kauf nur vermutet, kein bestätigtes DEX-Programm";}
-        else if(sent.length===1&&received.length===0&&solDelta!==null&&solDelta>0){classification="SELL_INFERRED";classificationBasis="Token-Abgang + SOL-Zugang; Verkauf nur vermutet, kein bestätigtes DEX-Programm";}
+        else if(received.length>0&&sent.length===0&&solDelta!==null&&solDelta<0){classification="BUY_INFERRED";classificationBasis="Token-Zugang + SOL-Abgang; Kauf nur vermutet, kein bestätigtes DEX-Programm";}
+        else if(sent.length>0&&received.length===0&&solDelta!==null&&solDelta>0){classification="SELL_INFERRED";classificationBasis="Token-Abgang + SOL-Zugang; Verkauf nur vermutet, kein bestätigtes DEX-Programm";}
         else if(tokenChanges.length>0){classification="TOKEN_MOVEMENT";classificationBasis="Token-Bewegung ohne eindeutig rekonstruierbare Gegenleistung";}
         const assetsSent=sent.map(x=>({mint:x.mint,amount:Math.abs(x.amount)}));
         const assetsReceived=received.map(x=>({mint:x.mint,amount:x.amount}));
