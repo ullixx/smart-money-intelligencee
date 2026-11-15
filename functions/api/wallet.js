@@ -7,10 +7,13 @@ export async function onRequestGet({ request }) {
     const signatures=await call("getSignaturesForAddress",[address,{limit:40}]);
     const selected=(signatures||[]).slice(0,25);
     let skippedTransactions=0;
+    const skipReasons={rpcError:0,transactionNotFound:0,missingMetadata:0,failedTransaction:0};
     const analyse=async item=>{
       try{
         const tx=await call("getTransaction",[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:0}]);
-        if(!tx?.meta||tx.meta.err)return null;
+        if(!tx){skipReasons.transactionNotFound++;return null;}
+        if(!tx.meta){skipReasons.missingMetadata++;return null;}
+        if(tx.meta.err){skipReasons.failedTransaction++;return null;}
         const keys=tx.transaction?.message?.accountKeys||[],index=keys.findIndex(k=>(typeof k==="string"?k:k.pubkey)===address);
         const solDelta=index>=0?((tx.meta.postBalances?.[index]||0)-(tx.meta.preBalances?.[index]||0))/1e9:null;
         const changes=new Map();
@@ -24,7 +27,7 @@ export async function onRequestGet({ request }) {
         else if(tokenChanges.length===2&&received.length===1&&sent.length===1){classification="SWAP_CANDIDATE";classificationBasis="Zwei gegenläufige Token-Salden; Swap-Kandidat, kein bestätigter DEX-Swap";}
         else if(tokenChanges.length>0){classification="TOKEN_MOVEMENT";classificationBasis="Token-Bewegung ohne eindeutiges SOL-Gegenstück";}
         return {signature:item.signature,time:item.blockTime?new Date(item.blockTime*1000).toISOString():null,slot:item.slot??null,solDelta,tokenChanges,classification,classificationBasis,feeSol:(tx.meta.fee||0)/1e9,success:!tx.meta.err};
-      }catch(_){return null;}
+      }catch(_){skipReasons.rpcError++;return null;}
     };
     const transactions=[];
     // Fünf gleichzeitige RPC-Abfragen begrenzen Wartezeit und vermeiden einen 25er-Request-Sturm.
@@ -40,6 +43,6 @@ export async function onRequestGet({ request }) {
     const activityScore=Math.min(100,successful.length*3+buys*2+sells*2+repeatTokens*5);
     const activityLabel=successful.length<5?"Zu wenig Daten":activityScore>=65?"Hohe beobachtete Aktivität":activityScore>=30?"Mittlere beobachtete Aktivität":"Geringe beobachtete Aktivität";
     const netSol=successful.reduce((sum,t)=>sum+(t.solDelta||0),0);
-    return Response.json({status:"PARTIAL",source:"Solana public RPC",address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,skippedTransactions,coverage:Math.round(transactions.length/Math.max(1,Math.min(25,(signatures||[]).length))*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,distinctTokens:tokenLedger.length,netSol,repeatTokens},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},tokenLedger,transactions,note:"Nur die letzten bis zu 25 Signaturen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Transfers können wie Token-zu-Token-Swaps aussehen; SWAP_CANDIDATE ist ausdrücklich keine bestätigte DEX-Ausführung. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
+    return Response.json({status:"PARTIAL",source:"Solana public RPC",address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,skippedTransactions,skipReasons,coverage:Math.round(transactions.length/Math.max(1,Math.min(25,(signatures||[]).length))*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,distinctTokens:tokenLedger.length,netSol,repeatTokens},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},tokenLedger,transactions,note:"Nur die letzten bis zu 25 Signaturen. skipReasons unterscheidet RPC-Fehler, nicht gefundene Transaktionen, fehlende Metadaten und fehlgeschlagene Transaktionen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Transfers können wie Token-zu-Token-Swaps aussehen; SWAP_CANDIDATE ist ausdrücklich keine bestätigte DEX-Ausführung. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
   }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana public RPC",address,checkedAt:new Date().toISOString(),error:"RPC momentan nicht erreichbar oder rate-limited",detail:e.message,transactions:[]},{status:502});}
 }
