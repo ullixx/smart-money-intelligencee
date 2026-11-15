@@ -1,7 +1,7 @@
+import { createSolanaRpc } from "../lib/solana-rpc.js";
 const valid=a=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
-const rpc=async(endpoints,method,params)=>{let last;for(let i=0;i<endpoints.length;i++){try{const r=await fetch(endpoints[i],{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});if(!r.ok)throw new Error("RPC HTTP "+r.status);const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC-Fehler");return {result:j.result,provider:i};}catch(e){last=e;}}throw last||new Error("Kein Solana RPC-Endpunkt verfügbar");};
 export async function onRequestGet({request,env}){
- const RPCS=[...new Set([env?.SOLANA_RPC_URL,env?.SOLANA_RPC_FALLBACK_URL,"https://solana-rpc.publicnode.com"].filter(Boolean))];let activeProvider="Not yet selected";
+ const rpcClient=createSolanaRpc(env);const RPCS=[];const rpc=async(_endpoints,method,params)=>({result:await rpcClient.call(method,params),provider:0});let activeProvider="Not yet selected";
  const wallets=[...new Set((new URL(request.url).searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,10);
  if(!wallets.length||wallets.some(x=>!valid(x)))return Response.json({status:"UNAVAILABLE",error:"Mindestens eine gültige Solana-Wallet-Adresse erforderlich."},{status:400});
  try{
@@ -9,11 +9,11 @@ export async function onRequestGet({request,env}){
   for(const address of wallets){
    let signatures=[],analysed=0,skipped=0,buys=0,sells=0;
    const mintCounts=new Map(),buyMints=new Set();
-   try{const q=await rpc(RPCS,"getSignaturesForAddress",[address,{limit:20,commitment:"confirmed"}]);signatures=q.result;activeProvider=q.provider===0?"Primary RPC":RPCS[q.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";}
+   try{const q=await rpc(RPCS,"getSignaturesForAddress",[address,{limit:20,commitment:"confirmed"}]);signatures=q.result;activeProvider=rpcClient.providerLabel();}
    catch(e){results.push({address,status:"UNAVAILABLE",error:e.message});continue;}
    for(const sig of (signatures||[]).slice(0,15)){
     try{
-     const q=await rpc(RPCS,"getTransaction",[sig.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:2}]);const tx=q.result;if(q.provider>0)activeProvider=RPCS[q.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";
+     const q=await rpc(RPCS,"getTransaction",[sig.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:2}]);const tx=q.result;activeProvider=rpcClient.providerLabel();
      if(!tx?.meta||tx.meta.err){skipped++;continue;}
      const staticKeys=tx.transaction?.message?.accountKeys||[],loadedKeys=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])],keys=[...staticKeys,...loadedKeys];
      const idx=keys.findIndex(k=>(typeof k==="string"?k:k?.pubkey)===address);
