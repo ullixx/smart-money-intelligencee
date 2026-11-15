@@ -20,17 +20,32 @@ async function loadDiscovery(){const badge=document.getElementById("connection")
 const KEY="smi_wallet_watchlist_v1";
 function getWallets(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch{return []}}
 function renderWatchlist(){const list=getWallets();document.getElementById("walletCount").textContent=list.length;document.getElementById("watchlist").innerHTML=list.map(a=>'<button type="button" data-wallet="'+esc(a)+'" style="background:#18263a;color:var(--text);border:1px solid var(--line);padding:7px 9px">'+esc(a.slice(0,5)+"…"+a.slice(-5))+' · prüfen</button><button type="button" data-remove="'+esc(a)+'" style="background:#301923;color:#ff9aaa;padding:7px 9px">×</button>').join("");}
+let lastWalletReport=null;
+function exportWalletCSV(){
+ if(!lastWalletReport)return;
+ const d=lastWalletReport,rows=[["type","mint","net_amount","received","sent","transactions","first_seen","last_seen"]];
+ for(const t of d.tokenLedger||[])rows.push(["token",t.mint,t.netAmount,t.received,t.sent,t.transactions,t.firstSeen,t.lastSeen]);
+ for(const t of d.transactions||[])rows.push(["transaction",t.signature,"","","",t.classification,t.time,t.solDelta]);
+ const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(";")).join("\\r\\n");
+ const blob=new Blob(["\\ufeff"+csv],{type:"text/csv;charset=utf-8"}),link=document.createElement("a"),url=URL.createObjectURL(blob);
+ link.href=url;link.download="wallet-report-"+d.address.slice(0,8)+".csv";link.click();URL.revokeObjectURL(url);
+}
 async function inspectWallet(address){
  const out=document.getElementById("walletResult");out.textContent="Lade Wallet-Aktivität …";
  try{
-  const r=await fetch("/api/wallet?address="+encodeURIComponent(address),{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Wallet-Abfrage fehlgeschlagen");
-  const tx=d.transactions||[],s=d.summary||{};
+  const r=await fetch("/api/wallet?address="+encodeURIComponent(address),{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Wallet-Abfrage fehlgeschlagen");lastWalletReport=d;
+  const tx=d.transactions||[],s=d.summary||{},p=d.activityProfile||{},ledger=d.tokenLedger||[];
   const stat=(label,value)=>'<div class="metric" style="padding:10px"><small>'+label+'</small><strong style="font-size:19px">'+value+'</strong></div>';
   const type=t=>t.classification==="BUY_INFERRED"?'<span style="color:var(--green)">BUY · vermutet</span>':t.classification==="SELL_INFERRED"?'<span style="color:var(--red)">SELL · vermutet</span>':t.classification==="TOKEN_MOVEMENT"?"Token-Bewegung":"Unklar";
-  out.innerHTML='<div style="margin:8px 0 12px"><b style="color:var(--amber)">'+d.status+'</b> · '+tx.length+' Transaktionen geladen · '+esc(d.source)+'</div>'+
-   '<div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0">'+stat("Erkannte BUYs",s.inferredBuys??"—")+stat("Erkannte SELLs",s.inferredSells??"—")+stat("Token berührt",s.distinctTokens??"—")+stat("Netto SOL",fmt(s.netSol))+'</div>'+
-   (tx.length?'<div class="tablewrap"><table><thead><tr><th>Zeit</th><th>Einordnung</th><th>SOL netto</th><th>Token-Veränderungen</th><th>Signatur</th></tr></thead><tbody>'+tx.map(t=>'<tr><td>'+(t.time?new Date(t.time).toLocaleString("de-DE"):"—")+'</td><td>'+type(t)+'<br><span class="muted">'+esc(t.classificationBasis||"")+'</span></td><td>'+(t.solDelta==null?"—":fmt(t.solDelta)+" SOL")+'</td><td>'+(t.tokenChanges.length?t.tokenChanges.map(c=>esc(c.mint.slice(0,5)+"…"+c.mint.slice(-5))+": "+fmt(c.amount)).join("<br>"):"—")+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/tx/'+encodeURIComponent(t.signature)+'">Solscan ↗</a></td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Transaktionen gefunden.')+
-   '<p class="muted" style="font-size:11px;margin-bottom:0">'+esc(d.note||"")+" · Abruf: "+new Date(d.checkedAt).toLocaleString("de-DE")+'</p>';
+  out.innerHTML='<div style="margin:8px 0 12px"><b style="color:var(--amber)">'+d.status+'</b> · '+tx.length+' Transaktionen · '+esc(d.source)+'</div>'+
+   '<div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0">'+stat("Vermutete BUYs",s.inferredBuys??"—")+stat("Vermutete SELLs",s.inferredSells??"—")+stat("Token berührt",s.distinctTokens??"—")+stat("Netto SOL",fmt(s.netSol))+'</div>'+
+   '<div class="panel" style="margin:10px 0;padding:12px"><b>Aktivitätsprofil: '+esc(p.label||"Nicht verfügbar")+'</b><div style="height:7px;background:#263247;border-radius:9px;margin:8px 0;overflow:hidden"><div style="height:100%;width:'+Math.max(0,Math.min(100,Number(p.score)||0))+'%;background:var(--green)"></div></div><span class="muted" style="font-size:11px">Score '+(p.score??"—")+'/100 · '+esc(p.method||"")+'</span></div>'+
+   '<div class="sectionhead" style="margin-top:18px"><h3 style="font-size:14px;margin:0">Token-Ledger</h3><button type="button" id="exportWalletCSV" style="padding:7px 10px">CSV exportieren</button></div>'+
+   (ledger.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>Netto-Menge</th><th>Erhalten</th><th>Gesendet</th><th>Bewegungen</th><th>Explorer</th></tr></thead><tbody>'+ledger.map(t=>'<tr><td>'+esc(t.mint.slice(0,7)+"…"+t.mint.slice(-6))+'</td><td>'+fmt(t.netAmount)+'</td><td>'+fmt(t.received)+'</td><td>'+fmt(t.sent)+'</td><td>'+t.transactions+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(t.mint)+'">Solscan ↗</a></td></tr>').join("")+'</tbody></table></div>':'<p class="muted">Kein Token-Ledger für die geprüften Transaktionen.</p>')+
+   '<h3 style="font-size:14px;margin-top:18px">Letzte Transaktionen</h3>'+
+   (tx.length?'<div class="tablewrap"><table><thead><tr><th>Zeit</th><th>Einordnung</th><th>SOL netto</th><th>Signatur</th></tr></thead><tbody>'+tx.map(t=>'<tr><td>'+(t.time?new Date(t.time).toLocaleString("de-DE"):"—")+'</td><td>'+type(t)+'<br><span class="muted">'+esc(t.classificationBasis||"")+'</span></td><td>'+(t.solDelta==null?"—":fmt(t.solDelta)+" SOL")+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/tx/'+encodeURIComponent(t.signature)+'">Solscan ↗</a></td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Transaktionen gefunden.')+
+   '<p class="muted" style="font-size:11px;margin-bottom:0">'+esc(d.note||"")+' · Abruf: '+new Date(d.checkedAt).toLocaleString("de-DE")+'</p>';
+  document.getElementById("exportWalletCSV").addEventListener("click",exportWalletCSV);
  }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
 }
 async function inspectNetwork(){
