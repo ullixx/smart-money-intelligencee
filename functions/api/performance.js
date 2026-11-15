@@ -1,4 +1,4 @@
-const RPC="https://api.mainnet-beta.solana.com";
+const RPC="https://solana-rpc.publicnode.com";
 const GT="https://api.geckoterminal.com/api/v2";
 const headers={"accept":"application/json;version=20230203"};
 const json=async(url,opts={})=>{const r=await fetch(url,opts);if(!r.ok)throw new Error("HTTP "+r.status+" bei "+url);return r.json();};
