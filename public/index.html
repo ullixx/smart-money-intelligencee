@@ -206,4 +206,7 @@ async function inspectEntry(address){
  }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
 }
 document.getElementById("entryForm").addEventListener("submit",e=>{e.preventDefault();const a=document.getElementById("entryAddress").value.trim();if(a)inspectEntry(a);});
+
+loadDiscovery();
+renderWatchlist();
 </script></body></html>
