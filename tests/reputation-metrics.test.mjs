@@ -101,3 +101,30 @@ test("counts break-even exits in the completed-trade denominator", () => {
   assert.equal(token.winningTrades, 1);
   assert.equal(token.winRateClosedTrades, 0.5);
 });
+
+test("ranks only profiles with enough completed trades and price coverage", async () => {
+  const { rankPerformanceProfiles } = await import("../functions/lib/reputation-metrics.js");
+  const profile = (address, pnl, trades, coverage, winRate = 0.5) => ({
+    address, coverage,
+    summary: { estimatedRealizedPnlUsd: pnl, closedTrades: trades, fifoLotWinRate: winRate }
+  });
+  const result = rankPerformanceProfiles([
+    profile("wallet-low", 50, 12, 0.9),
+    profile("wallet-top", 100, 15, 0.95),
+    profile("wallet-thin", 1000, 3, 1),
+    profile("wallet-poor-coverage", 900, 20, 0.5)
+  ]);
+  assert.deepEqual(result.ranked.map(x => [x.address, x.rank]), [["wallet-top", 1], ["wallet-low", 2]]);
+  assert.deepEqual(result.unqualified.map(x => x.address), ["wallet-thin", "wallet-poor-coverage"]);
+});
+
+test("uses deterministic tie breaks without manufacturing a score", async () => {
+  const { rankPerformanceProfiles } = await import("../functions/lib/reputation-metrics.js");
+  const profiles = ["wallet-b", "wallet-a"].map(address => ({
+    address, coverage: 1,
+    summary: { estimatedRealizedPnlUsd: 10, closedTrades: 10, fifoLotWinRate: 0.6 }
+  }));
+  const result = rankPerformanceProfiles(profiles);
+  assert.deepEqual(result.ranked.map(x => x.address), ["wallet-a", "wallet-b"]);
+  assert.equal("score" in result.ranked[0], false);
+});
