@@ -128,3 +128,15 @@ test("uses deterministic tie breaks without manufacturing a score", async () => 
   assert.deepEqual(result.ranked.map(x => x.address), ["wallet-a", "wallet-b"]);
   assert.equal("score" in result.ranked[0], false);
 });
+
+test("does not rank null realized PnL as a zero-profit wallet", async () => {
+  const { rankPerformanceProfiles } = await import("../functions/lib/reputation-metrics.js");
+  const result = rankPerformanceProfiles([{
+    address: "wallet-no-pnl",
+    coverage: 1,
+    summary: { estimatedRealizedPnlUsd: null, closedTrades: 12, fifoLotWinRate: 0.5 }
+  }]);
+  assert.equal(result.ranked.length, 0);
+  assert.equal(result.unqualified.length, 1);
+  assert.equal(result.unqualified[0].eligible, false);
+});
