@@ -19,3 +19,10 @@ test("discovery UI never renders unknown or partial risk as low risk",()=>{
   assert.match(html,/:"UNBEKANNT"\)/);
   assert.match(html,/t\.riskLevel==="LOW"\?"NIEDRIG"/);
 });
+
+
+test("wallet UI labels raw SOL delta as a balance change, not swap proceeds",()=>{
+  const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+  assert.match(html,/SOL-Saldoänderung/);
+  assert.doesNotMatch(html,/SOL netto/);
+});
