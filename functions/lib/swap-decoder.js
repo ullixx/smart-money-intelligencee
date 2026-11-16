@@ -54,7 +54,8 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const hasWalletTokenTransferOut=walletTokenTransfers.some(x=>x.sourceOwned&&!x.destinationOwned);
  const hasWalletSystemTransferIn=systemTransfers.some(x=>x.toWallet);
  const hasWalletSystemTransferOut=systemTransfers.some(x=>x.fromWallet);
- const received=tokenChanges.filter(x=>Number(x.amount)>0),sent=tokenChanges.filter(x=>Number(x.amount)<0);
+ const nonSolTokenChanges=tokenChanges.filter(x=>x.mint!==WSOL_MINT);
+ const received=nonSolTokenChanges.filter(x=>Number(x.amount)>0),sent=nonSolTokenChanges.filter(x=>Number(x.amount)<0);
  const hasTokenIn=received.length>0,hasTokenOut=sent.length>0;
  const wrappedSolChange=tokenChanges.filter(x=>x.mint===WSOL_MINT).reduce((n,x)=>n+Number(x.amount||0),0);
  const hasWrappedSolIn=wrappedSolChange>0,hasWrappedSolOut=wrappedSolChange<0;
