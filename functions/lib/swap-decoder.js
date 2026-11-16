@@ -24,8 +24,16 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const instructions=[...(message.instructions||[]),...(meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
  const programIds=[...new Set(instructions.map(ix=>ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null)).filter(x=>typeof x==="string"))];
  const dexPrograms=[...new Set(programIds.filter(id=>Object.hasOwn(DEX_IDS,id)).map(id=>DEX_IDS[id]))];
+ // Token-Konten auch dann der Wallet zuordnen, wenn RPC-Metadaten
+ // owner/accountIndex bei neu angelegten oder geschlossenen ATAs auslassen.
  const walletTokenAccounts=new Set([...(meta.preTokenBalances||[]),...(meta.postTokenBalances||[])].filter(b=>b.owner===wallet&&Number.isInteger(b.accountIndex)).map(b=>keyAt(b.accountIndex)).filter(Boolean));
  const parsedTypes=instructions.map(ix=>String(ix.parsed?.type||"").toLowerCase()).filter(Boolean);
+ for(const ix of instructions){
+  const info=ix.parsed?.info||{},type=String(ix.parsed?.type||"").toLowerCase();
+  const account=info.account||info.accountAddress||info.tokenAccount||null;
+  if(account&&(info.wallet===wallet||info.owner===wallet))walletTokenAccounts.add(account);
+  if(["initializeaccount","initializeaccount2","initializeaccount3"].includes(type)&&info.owner===wallet&&info.account)walletTokenAccounts.add(info.account);
+ }
  const tokenTransfers=[],systemTransfers=[];
  for(const ix of instructions){
   const id=ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null);
