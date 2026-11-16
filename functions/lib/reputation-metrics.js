@@ -55,7 +55,6 @@ export function aggregatePerformancePages(pages = []) {
         if (lot.amount <= 1e-12) lots.shift();
       }
       if (remaining > 1e-12) unmatchedEvents++;
-      if (!matchedThisSell && remaining <= 1e-12) unmatchedEvents++;
     }
 
     tokenResults.push({
