@@ -44,7 +44,7 @@ async function secureResponse(response) {
     const bytes = new Uint8Array(18);
     crypto.getRandomValues(bytes);
     nonce = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
-    body = (await response.text()).replace(/<script(?=[\\s>])/gi, '<script nonce="' + nonce + '"');
+    body = (await response.text()).replace(/<script(?=[\s>])/gi, '<script nonce="' + nonce + '"');
   }
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     headers.set(name, name === "Content-Security-Policy" && nonce
