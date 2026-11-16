@@ -50,6 +50,7 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
   if(["initializeaccount","initializeaccount2","initializeaccount3"].includes(type)&&info.owner===wallet){const account=info.account||info.accountAddress||info.tokenAccount;if(account)walletTokenAccounts.add(account);}
  }
  const createdAccounts=new Set(instructions.flatMap(ix=>{const info=ix.parsed?.info||{},type=String(ix.parsed?.type||"").toLowerCase();return ["createaccount","createaccountwithseed"].includes(type)&&info.newAccount?[info.newAccount]:[]}));
+ const createdAccounts=new Set(instructions.flatMap(ix=>{const info=ix.parsed?.info||{},type=String(ix.parsed?.type||"").toLowerCase();return ["createaccount","createaccountwithseed"].includes(type)&&info.newAccount?[info.newAccount]:[]}));
  const tokenTransfers=[],systemTransfers=[];
  for(const ix of instructions){
   const id=ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null);
@@ -66,15 +67,21 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
   }
   if(id==="11111111111111111111111111111111"&&["transfer","transferwithseed"].includes(type)){
    const source=info.source||null,destination=info.destination||null;
-   systemTransfers.push({source,destination,lamports:Number(info.lamports??0),fromWallet:source===wallet,toWallet:destination===wallet});
+   const rentRelated=walletTokenAccounts.has(destination)||createdAccounts.has(destination);
+   systemTransfers.push({source,destination,lamports:Number(info.lamports??0),fromWallet:source===wallet,toWallet:destination===wallet,rentRelated,flowType:rentRelated?"TOKEN_ACCOUNT_RENT_OR_CREATION":"SYSTEM_TRANSFER"});
+  }
+  if(id==="11111111111111111111111111111111"&&["createaccount","createaccountwithseed"].includes(type)){
+   const source=info.source||null,destination=info.newAccount||null;
+   systemTransfers.push({source,destination,lamports:Number(info.lamports??0),fromWallet:source===wallet,toWallet:destination===wallet,rentRelated:true,flowType:"ACCOUNT_CREATION_RENT"});
   }
  }
  const walletTokenTransfers=tokenTransfers.filter(x=>x.sourceOwned||x.destinationOwned);
  const walletTokenLegs=walletTokenTransfers.map(x=>({...x,side:x.destinationOwned&&!x.sourceOwned?"IN":x.sourceOwned&&!x.destinationOwned?"OUT":"INTERNAL_OR_SELF"}));
  const hasWalletTokenTransferIn=walletTokenTransfers.some(x=>x.destinationOwned&&!x.sourceOwned);
  const hasWalletTokenTransferOut=walletTokenTransfers.some(x=>x.sourceOwned&&!x.destinationOwned);
- const hasWalletSystemTransferIn=systemTransfers.some(x=>x.toWallet);
- const hasWalletSystemTransferOut=systemTransfers.some(x=>x.fromWallet);
+ const considerationSystemTransfers=systemTransfers.filter(x=>!x.rentRelated);
+ const hasWalletSystemTransferIn=considerationSystemTransfers.some(x=>x.toWallet);
+ const hasWalletSystemTransferOut=considerationSystemTransfers.some(x=>x.fromWallet);
  const nonSolTokenChanges=tokenChanges.filter(x=>x.mint!==WSOL_MINT);
  const received=nonSolTokenChanges.filter(x=>Number(x.amount)>0),sent=nonSolTokenChanges.filter(x=>Number(x.amount)<0);
  const hasTokenIn=received.length>0,hasTokenOut=sent.length>0;
