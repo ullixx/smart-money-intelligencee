@@ -1,3 +1,4 @@
+import { decodeSwapEvidence } from "./swap-decoder.js";
 const SYSTEM_PROGRAM = "11111111111111111111111111111111";
 const WSOL = "So11111111111111111111111111111111111111112";
 const keyString = value => typeof value === "string" ? value : value?.pubkey || null;
@@ -14,7 +15,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
 
   for (const wallet of wallets) {
     const txs = (transactionsByWallet[wallet] || []).filter(tx => tx && tx.meta && !tx.meta.err);
-    let buys = 0, sells = 0, solIn = 0, solOut = 0, fees = 0;
+    let buys = 0, sells = 0, solIn = 0, solOut = 0, fees = 0, confirmedDexSwaps = 0, swapCandidates = 0;
     const mints = new Map();
     const counterparties = new Set();
     const activityDays = new Set();
@@ -71,7 +72,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
     if (solOut > 0 && solIn === 0) riskFlags.push("NETTO-SOL-ABFLUSS IM BEOBACHTETEN FENSTER");
     profiles.push({
       address: wallet, status: txs.length ? "PARTIAL" : "UNAVAILABLE",
-      transactionsAnalysed: txs.length, observedBuys: buys, observedSells: sells,
+      transactionsAnalysed: txs.length, confirmedDexSwaps, swapCandidates, observedBuys: buys, observedSells: sells,
       activityDays: activityDays.size, activityScore, solIn: round(solIn), solOut: round(solOut),
       netSolTransfers: round(solIn-solOut), feesSol: round(fees),
       distinctTokens: [...mints.keys()].filter(m=>m!==WSOL).length,
@@ -106,7 +107,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
   });
   return {
     status: wallets.length ? "PARTIAL" : "UNAVAILABLE",
-    dataStatus: {wallets:wallets.length?"HISTORICAL":"UNAVAILABLE", discovery:discovered.length?"HISTORICAL":"PARTIAL", clusters:clusters.length||sharedTokenClusters.length?"HISTORICAL":"PARTIAL", capitalFlows:capitalFlows.length?"HISTORICAL":"PARTIAL", risk:profiles.length?"PARTIAL":"UNAVAILABLE"},
+    dataStatus: {wallets:wallets.length?"HISTORICAL":"UNAVAILABLE", discovery:discovered.length?"HISTORICAL":"PARTIAL", clusters:clusters.length||sharedTokenClusters.length?"HISTORICAL":"PARTIAL", capitalFlows:capitalFlows.length?"PARTIAL":"UNAVAILABLE", risk:profiles.length?"PARTIAL":"UNAVAILABLE"},
     generatedAt:new Date(now).toISOString(),
     coverage:{walletsRequested:wallets.length,walletsAnalysed:profiles.length,transactionsAnalysed:profiles.reduce((n,p)=>n+p.transactionsAnalysed,0),window:"Bis zu 5 jüngste Transaktionen je Wallet"},
     walletDiscovery:discovered,
@@ -114,7 +115,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
     clusters:{directTransfers:clusters,sharedTokenExposure:sharedTokenClusters,note:"Transfer- oder gemeinsame Token-Indizien beweisen keine gemeinsame Kontrolle."},
     capitalFlows,
     riskAssessment:risk,
-    limitations:["Nur die abgefragten Wallets und bis zu fünf jüngste Transaktionen je Wallet.","Historische Saldenänderungen; keine vollständige Marktpreis- oder PnL-Berechnung.","Fee-Payer und Transfer-Gegenparteien sind Kandidaten, keine bestätigten Smart-Money-Wallets.","Keine automatisierte Wallet-Verbindung und keine Trading-Aktionen."]
+    limitations:["Nur die abgefragten Wallets und bis zu fünf jüngste Transaktionen je Wallet.","Historische Saldenänderungen; keine vollständige Marktpreis- oder PnL-Berechnung.",\n      "Kapitalflüsse werden in Token-Einheiten ausgewiesen; USD-Bewertung ist UNAVAILABLE, solange historische Preise nicht zeitpunktgenau zugeordnet sind.",\n      "Wallet-Reputation ist nicht berechnet: Aktivität und Swap-Indizien sind kein Gewinn- oder Qualitätsnachweis.","Fee-Payer und Transfer-Gegenparteien sind Kandidaten, keine bestätigten Smart-Money-Wallets.","Keine automatisierte Wallet-Verbindung und keine Trading-Aktionen."]
   };
 }
 
