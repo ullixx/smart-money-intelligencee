@@ -2,6 +2,20 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createSolanaRpc } from "../functions/lib/solana-rpc.js";
 
+test("returns an empty result for an empty batch without making an HTTP request", async () => {
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  globalThis.fetch = async () => { requests++; throw new Error("unexpected network request"); };
+  try {
+    const rpc = createSolanaRpc({ SOLANA_RPC_URL: "https://rpc.test" });
+    assert.deepEqual(await rpc.callBatch([]), []);
+    assert.equal(requests, 0);
+    assert.equal(rpc.budget().used, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("keeps successful batch results when one transaction returns an RPC error", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify([
@@ -15,7 +29,6 @@ test("keeps successful batch results when one transaction returns an RPC error",
       { method: "getTransaction", params: ["good-signature"] },
       { method: "getTransaction", params: ["unsupported-signature"] }
     ]);
-
     assert.deepEqual(result, [
       { slot: 123 },
       { __rpcError: "Solana RPC -32015: Unsupported transaction version" }
