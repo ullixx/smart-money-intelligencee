@@ -14,7 +14,7 @@ export async function onRequestGet({request}){
  }catch{}
  // Jupiter Tokens API als zweite Metadatenquelle für Solana-Mints.
  try{
-  const response=await fetch("https://api.jup.ag/tokens/v2/search?query="+encodeURIComponent(mint),{headers:{"Accept":"application/json"}});
+  const response=await fetch("https://api.jup.ag/tokens/v2/search?query="+encodeURIComponent(mint),{headers:{"Accept":"application/json"},signal:AbortSignal.timeout(8000)});
   if(response.ok){
    const data=await response.json(),tokens=Array.isArray(data)?data:[];
    const token=tokens.find(t=>(t.id||"").toLowerCase()===mint.toLowerCase());
@@ -25,7 +25,7 @@ export async function onRequestGet({request}){
  }catch{}
  // Fallback for tokens traded on DEXes outside Pump.fun.
  try{
-  const response=await fetch("https://api.dexscreener.com/latest/dex/tokens/"+encodeURIComponent(mint),{headers:{"Accept":"application/json"}});
+  const response=await fetch("https://api.dexscreener.com/latest/dex/tokens/"+encodeURIComponent(mint),{headers:{"Accept":"application/json"},signal:AbortSignal.timeout(8000)});
   if(response.ok){
    const data=await response.json(),pairs=Array.isArray(data.pairs)?data.pairs:[];
    const pair=pairs.find(p=>(p.baseToken?.address||"").toLowerCase()===mint.toLowerCase())||pairs.find(p=>(p.quoteToken?.address||"").toLowerCase()===mint.toLowerCase());
