@@ -40,10 +40,14 @@ async function secureResponse(response) {
   let body = response.body;
   const contentType = headers.get("Content-Type") || "";
   let nonce = null;
-  if (contentType.toLowerCase().includes("text/html")) {
+  if (response.status === 200 && contentType.toLowerCase().includes("text/html")) {
     const bytes = new Uint8Array(18);
     crypto.getRandomValues(bytes);
     nonce = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    headers.delete("Content-Length");
+    headers.delete("Content-MD5");
+    headers.delete("ETag");
+    headers.set("Cache-Control", "no-store");
     body = (await response.text()).replace(/<script(?=[\s>])/gi, '<script nonce="' + nonce + '"');
   }
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
