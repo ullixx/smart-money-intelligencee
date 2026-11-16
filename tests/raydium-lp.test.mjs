@@ -8,7 +8,7 @@ test("decodes the LP mint only from a correctly sized Raydium AMM v4 state", () 
   const result = decodeRaydiumV4LpMint({ programOwner: RAYDIUM_AMM_V4, data });
   assert.equal(result.status, "DECODED");
   assert.equal(result.offset, 464);
-  assert.equal(result.lpMint, "1".repeat(31) + "2");
+  assert.equal(result.lpMint, "4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM");
 });
 
 test("does not decode a pool owned by another program", () => {
