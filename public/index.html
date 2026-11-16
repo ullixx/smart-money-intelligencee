@@ -197,19 +197,19 @@ function mergePerformancePages(pages){
  const tokenResults=[];
  for(const [mint,events] of byMint){
   events.sort((a,b)=>a.time-b.time);
-  const lots=[];let pnl=0,matched=0,closed=0,wins=0,losses=0,hold=0,unmatched=0;
+  const lots=[];let pnl=0,matched=0,closed=0,wins=0,losses=0,hold=0,unmatched=0,grossProfit=0,grossLoss=0;
   for(const e of events){
    if(e.side==="BUY"){lots.push({amount:e.amount,price:Number.isFinite(e.priceUsd)?e.priceUsd:null,time:e.time});if(e.priceUsd==null)unmatched++;continue;}
    let remaining=e.amount;
    while(remaining>1e-12&&lots.length){
     const lot=lots[0],qty=Math.min(remaining,lot.amount);
     if(lot.price==null||!Number.isFinite(e.priceUsd))unmatched++;
-    else{const v=(e.priceUsd-lot.price)*qty;pnl+=v;matched+=qty;closed++;hold+=Math.max(0,e.time-lot.time);if(v>0)wins++;else if(v<0)losses++;}
+    else{const v=(e.priceUsd-lot.price)*qty;pnl+=v;if(v>0)grossProfit+=v;else if(v<0)grossLoss+=Math.abs(v);matched+=qty;closed++;hold+=Math.max(0,e.time-lot.time);if(v>0)wins++;else if(v<0)losses++;}
     remaining-=qty;lot.amount-=qty;if(lot.amount<=1e-12)lots.shift();
    }
    if(remaining>1e-12)unmatched++;
   }
-  tokenResults.push({mint,buys:events.filter(x=>x.side==="BUY").length,sells:events.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?pnl:null,closedLots:closed,profitableClosedLots:wins,losingClosedLots:losses,winRateClosedLots:closed?wins/closed:null,averageHoldingDays:closed?hold/closed/86400:null,openLots:lots.length,unmatchedEvents:unmatched,priceSource:events.every(x=>Number.isFinite(x.priceUsd))?"HISTORICAL":"PARTIAL",poolUrl:null,events});
+  tokenResults.push({mint,buys:events.filter(x=>x.side==="BUY").length,sells:events.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?pnl:null,closedLots:closed,profitableClosedLots:wins,losingClosedLots:losses,averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),winRateClosedLots:closed?wins/closed:null,averageHoldingDays:closed?hold/closed/86400:null,openLots:lots.length,unmatchedEvents:unmatched,priceSource:events.every(x=>Number.isFinite(x.priceUsd))?"HISTORICAL":"PARTIAL",poolUrl:null,events});
  }
  const closedLots=tokenResults.reduce((n,x)=>n+x.closedLots,0),wins=tokenResults.reduce((n,x)=>n+x.profitableClosedLots,0),hold=tokenResults.reduce((n,x)=>n+(x.averageHoldingDays||0)*x.closedLots,0);
  const closed=tokenResults.filter(x=>x.estimatedRealizedPnlUsd!==null);
