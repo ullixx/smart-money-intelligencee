@@ -8,6 +8,7 @@ import { onRequestGet as entry } from "../functions/api/entry.js";
 import { onRequestGet as performance } from "../functions/api/performance.js";
 import { onRequestGet as developer } from "../functions/api/developer.js";
 import { onRequestGet as tokenSecurity } from "../functions/api/token-security.js";
+import { onRequestGet as tokenInfo } from "../functions/api/token-info.js";
 
 const routes = {
   "/api/health": health,
@@ -19,7 +20,8 @@ const routes = {
   "/api/entry": entry,
   "/api/performance": performance,
   "/api/developer": developer,
-  "/api/token-security": tokenSecurity
+  "/api/token-security": tokenSecurity,
+  "/api/token-info": tokenInfo
 };
 
 export default {
