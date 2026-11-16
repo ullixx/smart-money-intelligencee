@@ -1,3 +1,4 @@
+import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 const SYSTEM_PROGRAM="11111111111111111111111111111111";
 export async function onRequestGet({request,env}) {
@@ -22,9 +23,11 @@ export async function onRequestGet({request,env}) {
      const deltas=new Map();
      for(const b of tx.meta.preTokenBalances||[])if(b.owner===wallet)deltas.set(b.mint,{mint:b.mint,delta:-Number(b.uiTokenAmount?.uiAmountString||0)});
      for(const b of tx.meta.postTokenBalances||[])if(b.owner===wallet){const v=deltas.get(b.mint)||{mint:b.mint,delta:0};v.delta+=Number(b.uiTokenAmount?.uiAmountString||0);deltas.set(b.mint,v);}
-     const positive=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta>0);
-     const negative=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta<0);
-     for(const v of positive)events.push({wallet,mint:v.mint,time:sig.blockTime,signature:sig.signature,amount:v.delta,solDelta,kind:solDelta!==null&&solDelta<0?"BUY_CANDIDATE":"TOKEN_RECEIPT"});
+     const tokenChanges=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta!==0).map(v=>({mint:v.mint,amount:v.delta}));
+     const evidence=decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges});
+     const positive=tokenChanges.filter(v=>v.amount>0);
+     const confirmedBuy=evidence.classification==="DEX_SWAP_EVIDENCE"&&["SOL_TO_TOKEN","TOKEN_TO_TOKEN"].includes(evidence.direction);
+     for(const v of positive)events.push({wallet,mint:v.mint,time:sig.blockTime,signature:sig.signature,amount:v.amount,solDelta,kind:confirmedBuy?"BUY_CANDIDATE":"TOKEN_RECEIPT",classification:evidence.classification,dexPrograms:evidence.dexPrograms});
      const instructions=[...(tx.transaction?.message?.instructions||[]),...(tx.meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
      for(const ix of instructions){const parsed=ix.parsed,info=parsed?.info;if(ix.program==="system"&&parsed?.type==="transfer"&&info?.destination===wallet&&info?.source&&info.source!==wallet){funding.push({wallet,funder:info.source,time:sig.blockTime,lamports:Number(info.lamports)||0,signature:sig.signature});}}
     }catch(_){skippedTransactions++;}
@@ -40,6 +43,6 @@ export async function onRequestGet({request,env}) {
   const relationships=[];
   for(const c of clusters){const funder=sharedFunders.find(f=>c.wallets.every(w=>f.wallets.includes(w)));const score=35+(funder?45:0)+(c.buyCandidateCount>=2?20:0);relationships.push({...c,evidenceScore:Math.min(100,score),evidenceLevel:funder?"MULTIPLE_SIGNALS":"TIME_OVERLAP_ONLY",sharedFunder:funder?.funder||null,interpretation:funder?"Gemeinsamer Funding-Absender plus zeitliche Token-Überschneidung":"Zeitliche Token-Überschneidung ohne gemeinsamen Funding-Nachweis"});}
   activeProvider=rpc.providerLabel();
-  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,walletStats,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,buyCandidates:events.filter(x=>x.kind==="BUY_CANDIDATE").length,clusters:relationships,sharedTokens,sharedFunders,note:"Untersucht werden maximal 8 aktuelle Transaktionen je Wallet. Funding-Beziehungen beruhen auf expliziten eingehenden System-Transfers in diesem Stichprobenfenster; Börsen, Relayer und gemeinsame Dienste können denselben Absender erklären. Zeitliche Überschneidungen und gemeinsame Funding-Absender beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen. Token-Zugänge sind Kaufkandidaten, keine bestätigten Swaps."},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,walletStats,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,buyCandidates:events.filter(x=>x.kind==="BUY_CANDIDATE").length,clusters:relationships,sharedTokens,sharedFunders,note:"Untersucht werden maximal 8 aktuelle Transaktionen je Wallet. Funding-Beziehungen beruhen auf expliziten eingehenden System-Transfers in diesem Stichprobenfenster; Börsen, Relayer und gemeinsame Dienste können denselben Absender erklären. Zeitliche Überschneidungen und gemeinsame Funding-Absender beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen. Nur DEX-Programm plus Wallet-Transfer- und Saldenindizien werden als Kaufkandidaten markiert; einseitige Token-Zugänge bleiben TOKEN_RECEIPT. Vollständige DEX-Routen und Ausführungspreise sind nicht dekodiert."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){activeProvider=rpc.providerLabel();return Response.json({status:"UNAVAILABLE",rpcProvider:activeProvider,error:"Solana RPC nicht erreichbar oder rate-limited",detail:e.message,clusters:[]},{status:502});}
 }
