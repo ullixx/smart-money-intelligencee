@@ -1,14 +1,9 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
+import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 const GT="https://api.geckoterminal.com/api/v2";
 const headers={"accept":"application/json;version=20230203"};
 const json=async(url,opts={})=>{const r=await fetch(url,opts);if(!r.ok)throw new Error("HTTP "+r.status+" bei "+url);return r.json();};
-const DEX_PROGRAM_IDS=new Set(["JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4","675kPX9MHTjS2zt1qfr1NYHuzeL7N9T8r8Z3F5V5","whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc","LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo","6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"]);
-const hasKnownDexInstruction=tx=>{
- const keys=tx.transaction?.message?.accountKeys||[],loaded=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])];
- const keyAt=i=>{const k=i<keys.length?keys[i]:loaded[i-keys.length];return typeof k==="string"?k:k?.pubkey;};
- const instructions=[...(tx.transaction?.message?.instructions||[]),...(tx.meta?.innerInstructions||[]).flatMap(x=>x.instructions||[])];
- return instructions.some(ix=>{const id=ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null);return typeof id==="string"&&DEX_PROGRAM_IDS.has(id);});
-};
+
 export async function onRequestGet({request,env}){
   const rpcClient=createSolanaRpc(env);const RPCS=[];const rpc=async(_endpoints,method,params)=>({result:await rpcClient.call(method,params),provider:0});let activeProvider="Not yet selected";
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
@@ -28,11 +23,13 @@ export async function onRequestGet({request,env}){
     for(const b of tx.meta.postTokenBalances||[])if(b.owner===address){const v=changes.get(b.mint)||{mint:b.mint,amount:0};v.amount+=Number(b.uiTokenAmount?.uiAmountString||0);changes.set(b.mint,v);}
     const delta=[...changes.values()].filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
     const sent=delta.filter(x=>x.amount<0),received=delta.filter(x=>x.amount>0);
-    const dexDetected=hasKnownDexInstruction(tx);
-    const swapLike=(dexDetected&&sent.length>0&&received.length>0)||(received.length>0&&sol!==null&&sol<0)||(sent.length>0&&sol!==null&&sol>0);
-    if(!swapLike){if(delta.length>0)unclassifiedTransactions++;continue;}
-    for(const change of sent){mints.add(change.mint);events.push({mint:change.mint,side:"SELL",amount:Math.abs(change.amount),time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:dexDetected?"DEX_PROGRAM_DETECTED":"SOL_COUNTERPART_INFERRED"});}
-    for(const change of received){mints.add(change.mint);events.push({mint:change.mint,side:"BUY",amount:change.amount,time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:dexDetected?"DEX_PROGRAM_DETECTED":"SOL_COUNTERPART_INFERRED"});}
+    const evidence=decodeSwapEvidence(tx,{wallet:address,solDelta:sol,tokenChanges:delta});
+    const dexConfirmed=evidence.classification==="DEX_SWAP_EVIDENCE";
+    if(!dexConfirmed){if(delta.length>0)unclassifiedTransactions++;continue;}
+    // Only known DEX-program + wallet-linked transfer evidence enters the PnL ledger.
+    // Heuristic BUY/SELL candidates remain excluded until independently confirmed.
+    for(const change of sent){mints.add(change.mint);events.push({mint:change.mint,side:"SELL",amount:Math.abs(change.amount),time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:"DEX_SWAP_EVIDENCE",dexPrograms:evidence.dexPrograms,confidence:evidence.confidence});}
+    for(const change of received){mints.add(change.mint);events.push({mint:change.mint,side:"BUY",amount:change.amount,time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:"DEX_SWAP_EVIDENCE",dexPrograms:evidence.dexPrograms,confidence:evidence.confidence});}
     if(!delta.length)unclassifiedTransactions++;
    }catch(_){skippedTransactions++;}
   }
