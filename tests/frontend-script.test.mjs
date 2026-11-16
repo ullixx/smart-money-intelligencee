@@ -26,3 +26,18 @@ test("wallet UI labels raw SOL delta as a balance change, not swap proceeds",()=
   assert.match(html,/SOL-Saldoänderung/);
   assert.doesNotMatch(html,/SOL netto/);
 });
+
+test("FOMO UI exposes score data quality and component coverage",()=>{
+  const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+  assert.match(html,/t\.scoreStatus==="LIVE"\?"VOLLSTÄNDIG"/);
+  assert.match(html,/t\.scoreStatus==="PARTIAL"\?"TEILWEISE"/);
+  assert.match(html,/t\.scoreCoverage\.available/);
+  assert.match(html,/t\.buys24h\?\?"—"/);
+});
+
+test("developer UI exposes mint history coverage limitations",()=>{
+  const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+  assert.match(html,/d\.historyWindowStatus==="REQUEST_LIMIT_REACHED"/);
+  assert.match(html,/RPC lieferte weniger Signaturen als angefragt/);
+  assert.match(html,/RPC lieferte keine Signaturen/);
+});
