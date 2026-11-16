@@ -44,7 +44,7 @@ test("marks known DEX plus wallet token flow and opposing balances as DEX eviden
  const f=fixture({dex:true,tokenIn:true,tokenOut:true});
  const r=decodeSwapEvidence(f.tx,{wallet:WALLET,solDelta:0,tokenChanges:f.changes});
  assert.equal(r.classification,"DEX_SWAP_EVIDENCE");
- assert.deepEqual(r.dexPrograms,["Jupiter"]);
+ assert.deepEqual(r.dexPrograms,["Jupiter v6"]);
 });
 
 const DEX_FIXTURES=[
