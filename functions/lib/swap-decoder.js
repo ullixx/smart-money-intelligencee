@@ -1,4 +1,6 @@
 const WSOL_MINT="So11111111111111111111111111111111111111112";
+const TOKEN_PROGRAM="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const TOKEN_2022_PROGRAM="TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 const DEX_IDS={
  "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4":"Jupiter v6",
  "JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB":"Jupiter v4",
@@ -47,18 +49,20 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
   if(account&&(info.wallet===wallet||info.owner===wallet))walletTokenAccounts.add(account);
   if(["initializeaccount","initializeaccount2","initializeaccount3"].includes(type)&&info.owner===wallet){const account=info.account||info.accountAddress||info.tokenAccount;if(account)walletTokenAccounts.add(account);}
  }
+ const createdAccounts=new Set(instructions.flatMap(ix=>{const info=ix.parsed?.info||{},type=String(ix.parsed?.type||"").toLowerCase();return ["createaccount","createaccountwithseed"].includes(type)&&info.newAccount?[info.newAccount]:[]}));
  const tokenTransfers=[],systemTransfers=[];
  for(const ix of instructions){
   const id=ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null);
   const parsed=ix.parsed||{},info=parsed.info||{},type=String(parsed.type||"").toLowerCase();
-  if(["transfer","transferchecked"].includes(type)){
+  if(["transfer","transferchecked","transfercheckedwithfee"].includes(type)){
    const source=info.source||null,destination=info.destination||null;
    const sourceOwned=!!source&&walletTokenAccounts.has(source),destinationOwned=!!destination&&walletTokenAccounts.has(destination);
    const mint=info.mint||tokenAccountMints.get(source)||tokenAccountMints.get(destination)||null;
    const rawAmount=info.tokenAmount?.amount??info.amount??null;
    const decimals=info.tokenAmount?.decimals??tokenAccountDecimals.get(source)??tokenAccountDecimals.get(destination)??null;
    const amountUi=info.tokenAmount?.uiAmountString??(rawAmount!==null&&decimals!==null?Number(rawAmount)/10**decimals:null);
-   tokenTransfers.push({source,destination,sourceOwned,destinationOwned,mint,amount:amountUi,amountUi,rawAmount,decimals,program:id});
+   const feeAmount=info.feeAmount??info.transferFeeAmount??null;
+   tokenTransfers.push({source,destination,sourceOwned,destinationOwned,mint,amount:amountUi,amountUi,rawAmount,decimals,feeAmount,program:id||ix.program||null,tokenProgram:id===TOKEN_2022_PROGRAM?"TOKEN_2022":id===TOKEN_PROGRAM?"SPL_TOKEN":ix.program==="spl-token-2022"?"TOKEN_2022":ix.program==="spl-token"?"SPL_TOKEN":"UNRESOLVED"});
   }
   if(id==="11111111111111111111111111111111"&&["transfer","transferwithseed"].includes(type)){
    const source=info.source||null,destination=info.destination||null;
@@ -101,6 +105,6 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  }
  const direction=hasWalletTokenTransferOut&&hasWalletTokenTransferIn?"TOKEN_TO_TOKEN":hasWalletTokenTransferIn&&solOut?"SOL_TO_TOKEN":hasWalletTokenTransferOut&&solIn?"TOKEN_TO_SOL":"UNRESOLVED";
  const feePayer=keyAt(0)||null;
- const counterparties=[...new Set([...walletTokenTransfers.flatMap(x=>[x.sourceOwned?null:x.source,x.destinationOwned?null:x.destination]),...systemTransfers.flatMap(x=>[x.fromWallet?null:x.source,x.toWallet?null:x.destination])].filter(x=>typeof x==="string"&&x!==wallet))];
- return {classification,confidence,basis,direction,feePayer,counterparties,dexPrograms,dexInstructionTrace,walletTokenLegs,programIds,wrappedSolMint:WSOL_MINT,wrappedSolDelta:wrappedSolChange,hasWrappedSolIn,hasWrappedSolOut,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
+ const counterparties=[...new Set([...walletTokenTransfers.flatMap(x=>[x.sourceOwned?null:x.source,x.destinationOwned?null:x.destination]),...considerationSystemTransfers.flatMap(x=>[x.fromWallet?null:x.source,x.toWallet?null:x.destination])].filter(x=>typeof x==="string"&&x!==wallet))];
+ return {classification,confidence,basis,direction,feePayer,counterparties,dexPrograms,dexInstructionTrace,walletTokenLegs,programIds,wrappedSolMint:WSOL_MINT,wrappedSolDelta:wrappedSolChange,hasWrappedSolIn,hasWrappedSolOut,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,considerationSystemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
 }
