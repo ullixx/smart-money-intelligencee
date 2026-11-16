@@ -33,9 +33,9 @@ export async function onRequestGet({ request, env }) {
     let skippedTransactions=0;
     const skipReasons={rpcError:0,transactionNotFound:0,missingMetadata:0,failedTransaction:0};
     const rpcErrorDetails={};
-    const analyse=async item=>{
+    const analyse=async (item,tx)=>{
       try{
-        const tx=await call("getTransaction",[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);
+        if(tx?.__rpcError)throw new Error(tx.__rpcError);
         if(!tx){skipReasons.transactionNotFound++;return null;}
         if(!tx.meta){skipReasons.missingMetadata++;return null;}
         if(tx.meta.err){skipReasons.failedTransaction++;return null;}
@@ -62,10 +62,19 @@ export async function onRequestGet({ request, env }) {
       }catch(error){skipReasons.rpcError++;const message=String(error?.message||error||"Unknown RPC error").slice(0,180);rpcErrorDetails[message]=(rpcErrorDetails[message]||0)+1;return null;}
     };
     const transactions=[];
-    // Zwei parallele Transaktionsabfragen reduzieren 429-Risiken bei RPC-Tarifen.
-    for(let i=0;i<selected.length;i+=2){
-      const batch=await Promise.all(selected.slice(i,i+2).map(analyse));
-      for(const tx of batch){if(tx)transactions.push(tx);else skippedTransactions++;}
+    // Ein JSON-RPC-Batch reduziert Worker-Subrequests gegenüber Einzelabfragen.
+    let transactionResults=[];
+    try{
+      transactionResults=await rpc.callBatch(selected.map(item=>({method:"getTransaction",params:[item.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]})));
+    }catch(error){
+      skipReasons.rpcError+=selected.length;
+      skippedTransactions+=selected.length;
+      const message=String(error?.message||error||"Unknown RPC error").slice(0,180);
+      rpcErrorDetails[message]=(rpcErrorDetails[message]||0)+selected.length;
+    }
+    if(transactionResults.length){
+      const analysedBatch=await Promise.all(selected.map((item,index)=>analyse(item,transactionResults[index])));
+      for(const tx of analysedBatch){if(tx)transactions.push(tx);else skippedTransactions++;}
     }
     const successful=transactions.filter(t=>t.success),buyClasses=["BUY_INFERRED","DEX_SWAP_DETECTED","SWAP_CANDIDATE"],sellClasses=["SELL_INFERRED","DEX_SWAP_DETECTED","SWAP_CANDIDATE"],buys=successful.reduce((n,t)=>n+(buyClasses.includes(t.classification)&&t.assetsReceived.length?1:0),0),sells=successful.reduce((n,t)=>n+(sellClasses.includes(t.classification)&&t.assetsSent.length?1:0),0),classificationCounts=successful.reduce((o,t)=>(o[t.classification]=(o[t.classification]||0)+1,o),{});
     const ledgerMap=new Map();
