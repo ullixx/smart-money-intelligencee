@@ -91,3 +91,18 @@ test("maps newly created associated token accounts to the wallet without balance
  assert.equal(r.hasWalletTokenTransferIn,true);
  assert.equal(r.classification,"TOKEN_TRANSFER_IN");
 });
+
+test("recognizes WSOL outflow as SOL consideration for a token buy candidate",()=>{
+ const f=fixture({tokenIn:true});
+ const r=decodeSwapEvidence(f.tx,{wallet:WALLET,solDelta:0,tokenChanges:[...f.changes,{mint:"So11111111111111111111111111111111111111112",amount:-0.25}]});
+ assert.equal(r.hasWrappedSolOut,true);
+ assert.equal(r.classification,"BUY_INFERRED");
+ assert.equal(r.direction,"SOL_TO_TOKEN");
+});
+test("recognizes WSOL inflow as SOL consideration for a token sell candidate",()=>{
+ const f=fixture({tokenOut:true});
+ const r=decodeSwapEvidence(f.tx,{wallet:WALLET,solDelta:0,tokenChanges:[...f.changes,{mint:"So11111111111111111111111111111111111111112",amount:0.25}]});
+ assert.equal(r.hasWrappedSolIn,true);
+ assert.equal(r.classification,"SELL_INFERRED");
+ assert.equal(r.direction,"TOKEN_TO_SOL");
+});
