@@ -5,7 +5,7 @@ export const RAYDIUM_CLMM_PROGRAM = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWq
 const CP_DISCRIMINATOR = [25, 10, 238, 197, 207, 234, 73, 22];
 const CLMM_DISCRIMINATOR = [52, 23, 5, 7, 170, 90, 108, 213];
 
-function encodeBase58(bytes) {
+export function encodeBase58(bytes) {
   const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
   let zeros = 0;
   while (zeros < bytes.length && bytes[zeros] === 0) zeros++;
