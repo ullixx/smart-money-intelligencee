@@ -125,7 +125,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
     clusters:{directTransfers:clusters,sharedTokenExposure:sharedTokenClusters,note:"Transfer- oder gemeinsame Token-Indizien beweisen keine gemeinsame Kontrolle."},
     capitalFlows,
     riskAssessment:risk,
-    limitations:["Nur die abgefragten Wallets und bis zu fünf jüngste Transaktionen je Wallet.","Historische Saldenänderungen; keine vollständige Marktpreis- oder PnL-Berechnung.","Kapitalflüsse werden in Token-Einheiten ausgewiesen; USD-Bewertung ist UNAVAILABLE, solange historische Preise nicht zeitpunktgenau zugeordnet sind.","Wallet-Reputation ist nicht berechnet: Aktivität und Swap-Indizien sind kein Gewinn- oder Qualitätsnachweis.","Fee-Payer und Transfer-Gegenparteien sind Kandidaten, keine bestätigten Smart-Money-Wallets.","Keine automatisierte Wallet-Verbindung und keine Trading-Aktionen."]
+    limitations:["Nur die abgefragten Wallets und bis zu fünf jüngste Transaktionen je Wallet.","Historische Saldenänderungen; keine vollständige Marktpreis- oder PnL-Berechnung.","Kapitalflüsse werden nur dann in USD bewertet, wenn historische Kurse den Bewegungszeitpunkten mit ausreichender zeitlicher Nähe zugeordnet werden können.","Wallet-Reputation ist nicht berechnet: Aktivität und Swap-Indizien sind kein Gewinn- oder Qualitätsnachweis.","Fee-Payer und Transfer-Gegenparteien sind Kandidaten, keine bestätigten Smart-Money-Wallets.","Keine automatisierte Wallet-Verbindung und keine Trading-Aktionen."]
   };
 }
 
