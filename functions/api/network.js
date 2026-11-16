@@ -1,38 +1,50 @@
 import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 import { createSolanaRpc } from "../lib/solana-rpc.js";
-const SYSTEM_PROGRAM="11111111111111111111111111111111";
 export async function onRequestGet({request,env}) {
  const rpc=createSolanaRpc(env);let activeProvider="Not yet selected";
- const rpcCall=rpc.call;
  const u=new URL(request.url),wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
  if(wallets.length<2||wallets.some(a=>!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)))return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
  try{
-  const events=[],funding=[],walletStats={};let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
+  const events=[],funding=[],walletStats={},refs=[];let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
+  // Signaturen je Wallet holen, Transaktionen anschließend gemeinsam abrufen.
   for(const wallet of wallets){
-   const sigs=await rpcCall("getSignaturesForAddress",[wallet,{limit:10}]);walletStats[wallet]={requested:Math.min(8,(sigs||[]).length),analysed:0};
-   for(const sig of (sigs||[]).slice(0,8)){
-    transactionsRequested++;
-    try{
-     const tx=await rpcCall("getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);
-     if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
-     transactionsAnalysed++;walletStats[wallet].analysed++;
-     const keys=tx.transaction?.message?.accountKeys||[],loaded=[...(tx.meta.loadedAddresses?.writable||[]),...(tx.meta.loadedAddresses?.readonly||[])],allKeys=[...keys,...loaded];
-     const keyString=k=>typeof k==="string"?k:k?.pubkey;
-     const walletIndex=allKeys.findIndex(k=>keyString(k)===wallet);
-     const solDelta=walletIndex>=0?((tx.meta.postBalances?.[walletIndex]||0)-(tx.meta.preBalances?.[walletIndex]||0))/1e9:null;
-     const deltas=new Map();
-     for(const b of tx.meta.preTokenBalances||[])if(b.owner===wallet)deltas.set(b.mint,{mint:b.mint,delta:-Number(b.uiTokenAmount?.uiAmountString||0)});
-     for(const b of tx.meta.postTokenBalances||[])if(b.owner===wallet){const v=deltas.get(b.mint)||{mint:b.mint,delta:0};v.delta+=Number(b.uiTokenAmount?.uiAmountString||0);deltas.set(b.mint,v);}
-     const tokenChanges=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta!==0).map(v=>({mint:v.mint,amount:v.delta}));
-     const evidence=decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges});
-     const incomingMints=new Set((evidence.walletTokenLegs||[]).filter(v=>v.side==="IN"&&v.mint).map(v=>v.mint));
-     const positive=tokenChanges.filter(v=>v.amount>0&&incomingMints.has(v.mint));
-     const confirmedBuy=evidence.classification==="DEX_SWAP_EVIDENCE"&&["SOL_TO_TOKEN","TOKEN_TO_TOKEN"].includes(evidence.direction);
-     for(const v of positive)events.push({wallet,mint:v.mint,time:sig.blockTime,signature:sig.signature,amount:v.amount,solDelta,kind:confirmedBuy?"BUY_CANDIDATE":"TOKEN_RECEIPT",classification:evidence.classification,dexPrograms:evidence.dexPrograms});
-     const instructions=[...(tx.transaction?.message?.instructions||[]),...(tx.meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
-     for(const ix of instructions){const parsed=ix.parsed,info=parsed?.info;if(ix.program==="system"&&parsed?.type==="transfer"&&info?.destination===wallet&&info?.source&&info.source!==wallet){funding.push({wallet,funder:info.source,time:sig.blockTime,lamports:Number(info.lamports)||0,signature:sig.signature});}}
-    }catch(_){skippedTransactions++;}
+   const sigs=await rpc.call("getSignaturesForAddress",[wallet,{limit:10}]);
+   const selected=(sigs||[]).slice(0,8);
+   walletStats[wallet]={requested:selected.length,analysed:0};
+   for(const sig of selected)refs.push({wallet,signature:sig.signature,blockTime:sig.blockTime});
+  }
+  transactionsRequested=refs.length;
+  let txResults=[];
+  if(refs.length){
+   try{
+    txResults=await rpc.callBatch(refs.map(ref=>({method:"getTransaction",params:[ref.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]})));
+   }catch(_){
+    skippedTransactions=refs.length;
    }
+  }
+  for(let index=0;index<refs.length;index++){
+   const ref=refs[index],wallet=ref.wallet;
+   try{
+    const tx=txResults[index];
+    if(tx?.__rpcError)throw new Error(tx.__rpcError);
+    if(!tx?.meta||tx.meta.err||!ref.blockTime){skippedTransactions++;continue;}
+    transactionsAnalysed++;walletStats[wallet].analysed++;
+    const keys=tx.transaction?.message?.accountKeys||[],loaded=[...(tx.meta.loadedAddresses?.writable||[]),...(tx.meta.loadedAddresses?.readonly||[])],allKeys=[...keys,...loaded];
+    const keyString=k=>typeof k==="string"?k:k?.pubkey;
+    const walletIndex=allKeys.findIndex(k=>keyString(k)===wallet);
+    const solDelta=walletIndex>=0?((tx.meta.postBalances?.[walletIndex]||0)-(tx.meta.preBalances?.[walletIndex]||0))/1e9:null;
+    const deltas=new Map();
+    for(const b of tx.meta.preTokenBalances||[])if(b.owner===wallet)deltas.set(b.mint,{mint:b.mint,delta:-Number(b.uiTokenAmount?.uiAmountString||0)});
+    for(const b of tx.meta.postTokenBalances||[])if(b.owner===wallet){const v=deltas.get(b.mint)||{mint:b.mint,delta:0};v.delta+=Number(b.uiTokenAmount?.uiAmountString||0);deltas.set(b.mint,v);}
+    const tokenChanges=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta!==0).map(v=>({mint:v.mint,amount:v.delta}));
+    const evidence=decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges});
+    const incomingMints=new Set((evidence.walletTokenLegs||[]).filter(v=>v.side==="IN"&&v.mint).map(v=>v.mint));
+    const positive=tokenChanges.filter(v=>v.amount>0&&incomingMints.has(v.mint));
+    const confirmedBuy=evidence.classification==="DEX_SWAP_EVIDENCE"&&["SOL_TO_TOKEN","TOKEN_TO_TOKEN"].includes(evidence.direction);
+    for(const v of positive)events.push({wallet,mint:v.mint,time:ref.blockTime,signature:ref.signature,amount:v.amount,solDelta,kind:confirmedBuy?"BUY_CANDIDATE":"TOKEN_RECEIPT",classification:evidence.classification,dexPrograms:evidence.dexPrograms});
+    const instructions=[...(tx.transaction?.message?.instructions||[]),...(tx.meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
+    for(const ix of instructions){const parsed=ix.parsed,info=parsed?.info;if(ix.program==="system"&&parsed?.type==="transfer"&&info?.destination===wallet&&info?.source&&info.source!==wallet){funding.push({wallet,funder:info.source,time:ref.blockTime,lamports:Number(info.lamports)||0,signature:ref.signature});}}
+   }catch(_){skippedTransactions++;}
   }
   const byMint=new Map();for(const e of events){if(!byMint.has(e.mint))byMint.set(e.mint,[]);byMint.get(e.mint).push(e);}
   const clusters=[];
@@ -44,6 +56,6 @@ export async function onRequestGet({request,env}) {
   const relationships=[];
   for(const c of clusters){const funder=sharedFunders.find(f=>c.wallets.every(w=>f.wallets.includes(w)));const score=35+(funder?45:0)+(c.buyCandidateCount>=2?20:0);relationships.push({...c,evidenceScore:Math.min(100,score),evidenceLevel:funder?"MULTIPLE_SIGNALS":"TIME_OVERLAP_ONLY",sharedFunder:funder?.funder||null,interpretation:funder?"Gemeinsamer Funding-Absender plus zeitliche Token-Überschneidung":"Zeitliche Token-Überschneidung ohne gemeinsamen Funding-Nachweis"});}
   activeProvider=rpc.providerLabel();
-  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,checkedAt:new Date().toISOString(),walletsChecked:wallets.length,walletStats,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,buyCandidates:events.filter(x=>x.kind==="BUY_CANDIDATE").length,clusters:relationships,sharedTokens,sharedFunders,note:"Untersucht werden maximal 8 aktuelle Transaktionen je Wallet. Funding-Beziehungen beruhen auf expliziten eingehenden System-Transfers in diesem Stichprobenfenster; Börsen, Relayer und gemeinsame Dienste können denselben Absender erklären. Zeitliche Überschneidungen und gemeinsame Funding-Absender beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen. Nur DEX-Programm plus Wallet-Transfer- und Saldenindizien werden als Kaufkandidaten markiert; einseitige Token-Zugänge bleiben TOKEN_RECEIPT. Vollständige DEX-Routen und Ausführungspreise sind nicht dekodiert."},{headers:{"Cache-Control":"no-store"}});
- }catch(e){activeProvider=rpc.providerLabel();return Response.json({status:"UNAVAILABLE",rpcProvider:activeProvider,error:"Solana RPC nicht erreichbar oder rate-limited",detail:e.message,clusters:[]},{status:502});}
+  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:activeProvider,rpcBudget:rpc.budget(),checkedAt:new Date().toISOString(),walletsChecked:wallets.length,walletStats,transactionsRequested,transactionsAnalysed,skippedTransactions,coverage:Math.round(transactionsAnalysed/Math.max(1,transactionsRequested)*100),positiveTokenMovements:events.length,buyCandidates:events.filter(x=>x.kind==="BUY_CANDIDATE").length,clusters:relationships,sharedTokens,sharedFunders,note:"Untersucht werden maximal 8 aktuelle Transaktionen je Wallet. Signaturen werden je Wallet geladen; alle Transaktionen werden in einer JSON-RPC-Batch-Abfrage verarbeitet. Funding-Beziehungen beruhen auf expliziten eingehenden System-Transfers in diesem Stichprobenfenster; Börsen, Relayer und gemeinsame Dienste können denselben Absender erklären. Zeitliche Überschneidungen und gemeinsame Funding-Absender beweisen weder gemeinsame Kontrolle noch Insider-Verbindungen. Nur DEX-Programm plus Wallet-Transfer- und Saldenindizien werden als Kaufkandidaten markiert; einseitige Token-Zugänge bleiben TOKEN_RECEIPT. Vollständige DEX-Routen und Ausführungspreise sind nicht dekodiert."},{headers:{"Cache-Control":"no-store"}});
+ }catch(e){activeProvider=rpc.providerLabel();return Response.json({status:"UNAVAILABLE",rpcProvider:activeProvider,rpcBudget:rpc.budget(),error:"Solana RPC nicht erreichbar oder rate-limited",detail:e.message,clusters:[]},{status:502});}
 }
