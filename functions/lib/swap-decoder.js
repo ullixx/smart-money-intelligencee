@@ -43,10 +43,12 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const hasTokenIn=received.length>0,hasTokenOut=sent.length>0;
  const solIn=hasWalletSystemTransferIn,solOut=hasWalletSystemTransferOut;
  let classification="UNCLEAR",confidence="LOW",basis="Keine eindeutigen Swap- oder Transfermerkmale";
- if(dexPrograms.length&&((hasTokenIn&&hasTokenOut)||(hasTokenIn&&solOut)||(hasTokenOut&&solIn))){
-  classification="DEX_SWAP_EVIDENCE";confidence="MEDIUM";basis="Bekanntes DEX-Programm, Wallet-eigene Token-Konten und gegenläufige Salden/Transfers; wirtschaftlicher Pfad noch nicht vollständig dekodiert";
+ if(dexPrograms.length&&walletTokenTransfers.length>0&&((hasTokenIn&&hasTokenOut)||(hasTokenIn&&solOut)||(hasTokenOut&&solIn))){
+  classification="DEX_SWAP_EVIDENCE";confidence="MEDIUM";basis="Bekanntes DEX-Programm und parsed Token-Transfer zwischen Wallet-Token-Konto und externem Konto; Salden passen dazu. Kein vollständiger Route-/Preisnachweis";
+ }else if(hasTokenIn&&hasTokenOut&&walletTokenTransfers.length>0){
+  classification="SWAP_CANDIDATE";confidence="LOW";basis="Gegenläufige Token-Salden und Wallet-zugeordnetes parsed Transfer-Indiz ohne erkanntes DEX-Programm";
  }else if(hasTokenIn&&hasTokenOut){
-  classification="SWAP_CANDIDATE";confidence="LOW";basis="Gegenläufige Token-Salden der Wallet ohne bestätigtes DEX-Programm";
+  classification="TOKEN_MOVEMENT";confidence="LOW";basis="Gegenläufige Token-Salden ohne parsed Wallet-Transfer-Nachweis; nicht als Swap gewertet";
  }else if(hasTokenIn&&solOut){
   classification="BUY_INFERRED";confidence="LOW";basis="Wallet erhält Token und sendet SOL laut System-Transfer; DEX-Gegenleistung nicht bestätigt";
  }else if(hasTokenOut&&solIn){
