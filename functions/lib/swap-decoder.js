@@ -25,6 +25,7 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const instructions=[...(message.instructions||[]),...(meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
  const programIds=[...new Set(instructions.map(ix=>ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null)).filter(x=>typeof x==="string"))];
  const dexPrograms=[...new Set(programIds.filter(id=>Object.hasOwn(DEX_IDS,id)).map(id=>DEX_IDS[id]))];
+ const dexInstructionTrace=instructions.map((ix,index)=>{const programId=ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null);return {index,programId,dexName:DEX_IDS[programId]||null,parsedType:ix.parsed?.type||null,accounts:ix.accounts||[],data:ix.data||null,stackHeight:ix.stackHeight??null};}).filter(x=>x.dexName);
  // Token-Konten auch dann der Wallet zuordnen, wenn RPC-Metadaten
  // owner/accountIndex bei neu angelegten oder geschlossenen ATAs auslassen.
  const walletTokenAccounts=new Set([...(meta.preTokenBalances||[]),...(meta.postTokenBalances||[])].filter(b=>b.owner===wallet&&Number.isInteger(b.accountIndex)).map(b=>keyAt(b.accountIndex)).filter(Boolean));
@@ -86,5 +87,5 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const direction=hasWalletTokenTransferOut&&hasWalletTokenTransferIn?"TOKEN_TO_TOKEN":hasWalletTokenTransferIn&&solOut?"SOL_TO_TOKEN":hasWalletTokenTransferOut&&solIn?"TOKEN_TO_SOL":"UNRESOLVED";
  const feePayer=keyAt(0)||null;
  const counterparties=[...new Set([...walletTokenTransfers.flatMap(x=>[x.sourceOwned?null:x.source,x.destinationOwned?null:x.destination]),...systemTransfers.flatMap(x=>[x.fromWallet?null:x.source,x.toWallet?null:x.destination])].filter(x=>typeof x==="string"&&x!==wallet))];
- return {classification,confidence,basis,direction,feePayer,counterparties,dexPrograms,programIds,wrappedSolMint:WSOL_MINT,wrappedSolDelta:wrappedSolChange,hasWrappedSolIn,hasWrappedSolOut,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
+ return {classification,confidence,basis,direction,feePayer,counterparties,dexPrograms,dexInstructionTrace,programIds,wrappedSolMint:WSOL_MINT,wrappedSolDelta:wrappedSolChange,hasWrappedSolIn,hasWrappedSolOut,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
 }
