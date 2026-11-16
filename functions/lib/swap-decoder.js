@@ -1,3 +1,4 @@
+const WSOL_MINT="So11111111111111111111111111111111111111112";
 const DEX_IDS={
  "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4":"Jupiter v6",
  "JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB":"Jupiter v4",
@@ -55,7 +56,9 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const hasWalletSystemTransferOut=systemTransfers.some(x=>x.fromWallet);
  const received=tokenChanges.filter(x=>Number(x.amount)>0),sent=tokenChanges.filter(x=>Number(x.amount)<0);
  const hasTokenIn=received.length>0,hasTokenOut=sent.length>0;
- const solIn=hasWalletSystemTransferIn,solOut=hasWalletSystemTransferOut;
+ const wrappedSolChange=tokenChanges.filter(x=>x.mint===WSOL_MINT).reduce((n,x)=>n+Number(x.amount||0),0);
+ const hasWrappedSolIn=wrappedSolChange>0,hasWrappedSolOut=wrappedSolChange<0;
+ const solIn=hasWalletSystemTransferIn||hasWrappedSolIn,solOut=hasWalletSystemTransferOut||hasWrappedSolOut;
  let classification="UNCLEAR",confidence="LOW",basis="Keine eindeutigen Swap- oder Transfermerkmale";
  if(dexPrograms.length&&walletTokenTransfers.length>0&&((hasTokenIn&&hasTokenOut)||(hasTokenIn&&solOut)||(hasTokenOut&&solIn))){
   classification="DEX_SWAP_EVIDENCE";confidence="MEDIUM";basis="Bekanntes DEX-Programm und parsed Token-Transfer zwischen Wallet-Token-Konto und externem Konto; Salden passen dazu. Kein vollständiger Route-/Preisnachweis";
@@ -79,5 +82,5 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
   classification="TOKEN_TRANSFER";confidence="MEDIUM";basis="Parsed SPL-Token-Transfer mit Wallet-eigenem Token-Konto";
  }
  const direction=hasWalletTokenTransferOut&&hasWalletTokenTransferIn?"TOKEN_TO_TOKEN":hasWalletTokenTransferIn&&solOut?"SOL_TO_TOKEN":hasWalletTokenTransferOut&&solIn?"TOKEN_TO_SOL":"UNRESOLVED";
- return {classification,confidence,basis,direction,dexPrograms,programIds,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
+ return {classification,confidence,basis,direction,dexPrograms,programIds,wrappedSolMint:WSOL_MINT,wrappedSolDelta:wrappedSolChange,hasWrappedSolIn,hasWrappedSolOut,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
 }
