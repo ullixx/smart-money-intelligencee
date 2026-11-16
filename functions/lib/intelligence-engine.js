@@ -12,6 +12,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
   const tokenOwners = new Map();
   const tokenFlows = new Map();
   const candidates = new Map();
+  const candidateReasons = new Map();
 
   for (const wallet of wallets) {
     const txs = (transactionsByWallet[wallet] || []).filter(tx => tx && tx.meta && !tx.meta.err);
@@ -25,7 +26,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
       const meta = tx.meta || {};
       const keys = [...(message.accountKeys || []).map(keyString), ...(meta.loadedAddresses?.writable || []), ...(meta.loadedAddresses?.readonly || [])];
       const payer = keys[0];
-      if (payer && payer !== wallet && !walletSet.has(payer)) candidates.set(payer,(candidates.get(payer)||0)+1);
+      if (payer && payer !== wallet && !walletSet.has(payer)) { candidates.set(payer,(candidates.get(payer)||0)+1); candidateReasons.set(payer,"FEE_PAYER"); }
       const time = Number(tx.blockTime || 0) * 1000;
       if (time) activityDays.add(new Date(time).toISOString().slice(0,10));
       fees += Number(meta.fee || 0) / 1e9;
@@ -55,6 +56,10 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
       const nonSol = [...before].filter(([mint,delta])=>mint!==WSOL&&delta!==0);
       const tokenChanges=[...before.entries()].map(([mint,amount])=>({mint,amount})).filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
       const evidence=decodeSwapEvidence(tx,{wallet,tokenChanges});
+      for(const transfer of evidence.systemTransfers){
+        const peer=transfer.fromWallet?transfer.destination:transfer.toWallet?transfer.source:null;
+        if(peer&&peer!==wallet){counterparties.add(peer);if(!walletSet.has(peer)){candidates.set(peer,(candidates.get(peer)||0)+1);candidateReasons.set(peer,"SOL_TRANSFER_COUNTERPARTY");}}
+      }
       if(evidence.classification==="DEX_SWAP_EVIDENCE"){
         confirmedDexSwaps++;
         if(evidence.direction==="SOL_TO_TOKEN")buys++;
@@ -101,7 +106,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
     wallets:[...f.wallets]
   })).sort((a,b)=>b.events-a.events);
   const discovered = [...candidates.entries()].filter(([address])=>!walletSet.has(address)).map(([address,mentions])=>({
-    address,mentions,discoveryReason:"Fee-Payer einer beobachteten Transaktion",
+    address,mentions,discoveryReason:candidateReasons.get(address)==="FEE_PAYER"?"Fee-Payer einer beobachteten Transaktion":"Gegenpartei eines beobachteten SOL-Transfers",candidateType:"WALLET_CANDIDATE",
     status:"CANDIDATE",warning:"Nicht als Smart Money bestätigt; separat prüfen"
   })).sort((a,b)=>b.mentions-a.mentions).slice(0,30);
   const risk = profiles.map(p=>{
