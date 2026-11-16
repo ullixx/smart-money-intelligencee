@@ -220,14 +220,14 @@ async function inspectPerformance(before=null){
  const list=getWallets(),out=document.getElementById("performanceResult");
  if(!before){performancePage=0;performanceNextCursor=null;performancePages=[];}
  if(!list.length){out.textContent="Bitte zuerst eine Wallet speichern.";return;}
- out.textContent="Lade Transaktionen und historische Kurse …";
+ out.textContent="Lade bis zu drei Historienseiten und gleiche BUY/SELL-Positionen ab …";
  try{
   const query="/api/performance?address="+encodeURIComponent(list[0])+(before?"&before="+encodeURIComponent(before):"");
   const response=await fetch(query,{cache:"no-store"}),data=await response.json();
   if(!response.ok)throw new Error(data.error||"Performance-Abfrage fehlgeschlagen");
   performancePages.push(data);
   const merged=mergePerformancePages(performancePages),summary=merged.summary,pct=summary.tokenLevelPositiveShare==null?"—":(summary.tokenLevelPositiveShare*100).toFixed(1)+"%";
-  performancePage++;performanceNextCursor=data.historyPagination?.nextBefore||null;
+  performancePage+=data.historyPagination?.pagesFetched||1;performanceNextCursor=data.historyPagination?.nextBefore||null;
   const pnl=summary.estimatedRealizedPnlUsd==null?"—":(summary.estimatedRealizedPnlUsd>=0?"+":"")+"$"+fmt(summary.estimatedRealizedPnlUsd);
   const factor=summary.profitFactor==null?"—":summary.profitFactor==="INFINITE"?"∞":fmt(summary.profitFactor);
   const rows=merged.tokenResults.map(token=>'<tr><td>'+esc(token.mint.slice(0,7)+"…"+token.mint.slice(-6))+'</td><td>'+token.buys+'</td><td>'+token.sells+'</td><td>'+fmt(token.matchedTokenAmount)+'</td><td>'+(token.estimatedRealizedPnlUsd==null?"—":(token.estimatedRealizedPnlUsd>=0?"+":"")+"$"+fmt(token.estimatedRealizedPnlUsd))+'</td><td>'+(token.profitFactor==null?"—":token.profitFactor==="INFINITE"?"∞":fmt(token.profitFactor))+'</td><td>'+(token.averageWinUsd==null?"—":"$"+fmt(token.averageWinUsd))+'</td><td>'+(token.averageLossUsd==null?"—":"$"+fmt(token.averageLossUsd))+'</td><td>'+token.openLots+'</td><td>'+token.unmatchedEvents+'</td><td>'+esc(token.priceSource)+'</td></tr>').join("");
