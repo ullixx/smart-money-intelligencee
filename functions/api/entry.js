@@ -1,32 +1,19 @@
+import { createSolanaRpc } from "../lib/solana-rpc.js";
 const valid=a=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
-const rpc=async(endpoints,method,params)=>{
- let last;
- for(let i=0;i<endpoints.length;i++){
-  try{
-   const r=await fetch(endpoints[i],{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jsonrpc:"2.0",id:1,method,params})});
-   if(!r.ok)throw new Error("Solana RPC HTTP "+r.status);
-   const j=await r.json();if(j.error)throw new Error(j.error.message||"RPC-Fehler");
-   return {result:j.result,provider:i};
-  }catch(e){last=e;}
- }
- throw last||new Error("Kein Solana RPC-Endpunkt verfügbar");
-};
 export async function onRequestGet({request,env}){
- const RPCS=[...new Set([env?.SOLANA_RPC_URL,env?.SOLANA_RPC_FALLBACK_URL,"https://solana-rpc.publicnode.com"].filter(Boolean))];
- let activeProvider="Not yet selected";
+ const rpc=createSolanaRpc(env);
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
  if(!valid(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Token-Mint-Adresse"},{status:400});
  try{
-  const [pairsRes,accountRes]=await Promise.all([
-   fetch("https://api.dexscreener.com/token-pairs/v1/solana/"+address),
-   rpc(RPCS,"getAccountInfo",[address,{encoding:"jsonParsed",commitment:"confirmed"}])
+  const [pairsRes,mintAccount]=await Promise.all([
+   fetch("https://api.dexscreener.com/token-pairs/v1/solana/"+address,{signal:AbortSignal.timeout(10000)}),
+   rpc.call("getAccountInfo",[address,{encoding:"jsonParsed",commitment:"confirmed"}])
   ]);
   if(!pairsRes.ok)throw new Error("DEX Screener HTTP "+pairsRes.status);
-  const pairs=await pairsRes.json(),rpcJson=accountRes;
-  activeProvider=rpcJson.provider===0?"Primary RPC":RPCS[rpcJson.provider]===env?.SOLANA_RPC_FALLBACK_URL?"QuickNode fallback":"PublicNode fallback";
-  const mintInfo=rpcJson.result?.value?.data?.parsed?.info;
+  const pairs=await pairsRes.json(),mintInfo=mintAccount?.value?.data?.parsed?.info;
   if(!mintInfo||mintInfo.decimals===undefined)throw new Error("Keine lesbaren SPL-Mint-Daten");
   const pool=(Array.isArray(pairs)?pairs:[]).filter(p=>p.baseToken?.address===address&&p.pairAddress).sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
+  const activeProvider=rpc.providerLabel();
   if(!pool)return Response.json({status:"NO_SETUP",source:"DEX Screener + Solana RPC mit Failover",rpcProvider:activeProvider,address,checkedAt:new Date().toISOString(),decision:"NO_SETUP",reasons:["Kein passendes Handelspaar gefunden"],note:"Keine Entry-Einschätzung ohne verifizierbares Handelspaar."});
   const liquidity=Number(pool.liquidity?.usd)||0,volume=Number(pool.volume?.h24)||0,buys=Number(pool.txns?.h24?.buys)||0,sells=Number(pool.txns?.h24?.sells)||0,total=buys+sells,buyPressure=total?buys/total:null,ratio=liquidity?volume/liquidity:null;
   const reasons=[],blocks=[];
@@ -43,5 +30,5 @@ export async function onRequestGet({request,env}){
   const decision=blocks.length?"NO_SETUP":reasons.some(x=>x.includes("Authority aktiv")||x.includes("Extrem hohes"))?"WATCH_ONLY":"WATCH";
   const score=Math.max(0,Math.min(100,Math.round((buyPressure??0)*35+Math.min(1,liquidity/50000)*30+Math.min(1,total/300)*20+Math.min(1,(ratio??0)/5)*15)));
   return Response.json({status:"PARTIAL",source:"DEX Screener + Solana RPC mit Failover",rpcProvider:activeProvider,address,checkedAt:new Date().toISOString(),decision,score,market:{liquidityUsd:liquidity,volume24h:volume,buys24h:buys,sells24h:sells,buyPressure,volumeLiquidity:ratio},security:{mintAuthorityActive:!!mintInfo.mintAuthority,freezeAuthorityActive:!!mintInfo.freezeAuthority},blocks,reasons,method:"Rule-based watchlist gate, not a trade signal. Liquidity >= $10k, >=20 transactions/24h, buy share >=52%, no >1.5x sell imbalance and no active freeze authority. Score is a market-condition score only.",note:"WATCH bedeutet nur weiter beobachten. WATCH_ONLY weist auf zusätzliche Risiken hin. Kein Kauf-/Verkaufssignal; keine Berücksichtigung von Slippage, MEV, Steuern, Wallet-Historie oder vollständiger Holder-Verteilung."},{headers:{"Cache-Control":"no-store"}});
- }catch(e){return Response.json({status:"UNAVAILABLE",source:"DEX Screener + Solana RPC mit Failover",rpcProvider:activeProvider,address,error:"Entry-Prüfung nicht verfügbar",detail:e.message},{status:502});}
+ }catch(e){return Response.json({status:"UNAVAILABLE",source:"DEX Screener + Solana RPC mit Failover",rpcProvider:rpc.providerLabel(),address,error:"Entry-Prüfung nicht verfügbar",detail:e.message},{status:502,headers:{"Cache-Control":"no-store"}});}
 }
