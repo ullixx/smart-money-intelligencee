@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { analyseIntelligence } from "../functions/lib/intelligence-engine.js";
+import { analyseIntelligence, discoverWalletCandidates } from "../functions/lib/intelligence-engine.js";
 const A="Wallet1111111111111111111111111111111111";
 const B="Wallet2222222222222222222222222222222222";
 function tx({owner=A,mint="Mint11111111111111111111111111111111111",pre="0",post="5",payer=A,blockTime=1}={}){
@@ -23,4 +23,13 @@ test("fee payer discovery excludes already tracked wallets",()=>{
  assert.equal(result.walletDiscovery[0].address,B);
  assert.equal(result.walletDiscovery[0].mentions,2);
  assert.equal(result.walletDiscovery[0].status,"CANDIDATE");
+});
+
+test("discovers fee payers and SOL transfer counterparties as unconfirmed candidates",()=>{
+ const peer="Wallet3333333333333333333333333333333333";
+ const tx={transaction:{message:{accountKeys:[A],instructions:[{programId:"11111111111111111111111111111111",parsed:{type:"transfer",info:{source:A,destination:peer,lamports:1000}}}]}},meta:{innerInstructions:[]}};
+ const candidates=discoverWalletCandidates({[A]:[tx]},[A]);
+ assert.equal(candidates[0].address,peer);
+ assert.equal(candidates[0].status,"CANDIDATE");
+ assert.match(candidates[0].warning,/Nicht als Smart Money bestätigt/);
 });
