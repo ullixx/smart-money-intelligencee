@@ -96,6 +96,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
   const capitalFlows = [...tokenFlows.values()].map(f=>({
     mint:f.mint,walletCount:f.wallets.size,netUnits:round(f.netUnits),
     inflowUnits:round(f.inflowUnits),outflowUnits:round(f.outflowUnits),events:f.events,
+    usdValue:null,valuationStatus:"UNAVAILABLE",valuationNote:"Historische USD-Kurse je Bewegungszeitpunkt sind noch nicht zugeordnet.",
     direction:f.netUnits>0?"NETTO-AKKUMULATION":f.netUnits<0?"NETTO-ABFLUSS":"AUSGEGLICHEN",
     wallets:[...f.wallets]
   })).sort((a,b)=>b.events-a.events);
