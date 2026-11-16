@@ -32,6 +32,12 @@ export function createSolanaRpc(env){
    for(let attempt=0;attempt<2;attempt++){
     try{
      const payload=await send({url:endpoint.url,body});
+     if(Array.isArray(body)&&!Array.isArray(payload)){
+      const detail=payload?.error?.message||"RPC-Anbieter lieferte keine gültige JSON-RPC-Batch-Antwort";
+      lastError=new Error("Solana RPC Batch nicht unterstützt oder ungültig: "+detail);
+      // Batch support can differ by provider. Try the next configured endpoint.
+      break;
+     }
      const entries=Array.isArray(body)?payload:(payload?[payload]:[]);
      // Batch members are independent: preserve successful results and let callBatch
      // expose an error only for the corresponding request ID.
