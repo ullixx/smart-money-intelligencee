@@ -13,7 +13,8 @@ export async function onRequestGet({request,env}){
    const unique=[...new Map(refs.map(x=>[x.signature,x])).values()];
    const results=unique.length?await rpc.callBatch(unique.map(x=>({method:"getTransaction",params:[x.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]}))):[];
    const byWallet=Object.fromEntries(addresses.map(a=>[a,[]]));
-   unique.forEach((ref,i)=>{const tx=results[i];if(tx&&!tx.__rpcError){tx.blockTime=tx.blockTime||ref.blockTime;byWallet[ref.address].push(tx);}});
+   const txBySignature=new Map(unique.map((ref,i)=>[ref.signature,results[i]]));
+   for(const ref of refs){const tx=txBySignature.get(ref.signature);if(tx&&!tx.__rpcError){const copy={...tx,blockTime:tx.blockTime||ref.blockTime};byWallet[ref.address].push(copy);}}
    return {byWallet,requested:unique.length};
   };
   const first=await getRecent(seeds);
