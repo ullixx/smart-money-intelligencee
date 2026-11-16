@@ -58,6 +58,8 @@ export async function onRequestGet({request,env}){
   const totalSignatures=historyPagination.transactionsScanned;
   const priceMap={};
   for(const mint of [...mints].slice(0,8)){
+   const mintEvents=events.filter(e=>e.mint===mint);
+   if(mintEvents.length&&mintEvents.every(e=>Number.isFinite(e.executionPriceUsd))){priceMap[mint]={status:"EXECUTION_QUOTE_USDC_PEG_ESTIMATE"};continue;}
    try{
     const pairs=await json("https://api.dexscreener.com/token-pairs/v1/solana/"+mint);
     const pool=(Array.isArray(pairs)?pairs:[]).filter(p=>(p.baseToken?.address===mint||p.quoteToken?.address===mint)&&p.pairAddress).sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
