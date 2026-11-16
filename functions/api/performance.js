@@ -12,9 +12,13 @@ export async function onRequestGet({request,env}){
  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse"},{status:400});
  try{
   const sq=await rpc(RPCS,"getSignaturesForAddress",[address,{limit:historyWindow.rpcLimit,...(historyWindow.before?{before:historyWindow.before}:{})}]);const sigs=sq.result||[];const historyPagination=buildHistoryPagination(sigs,historyWindow.pageSize,historyWindow.before);const pageSignatures=sigs.slice(0,historyWindow.pageSize);activeProvider=rpcClient.providerLabel();const events=[],mints=new Set();let skippedTransactions=0,unclassifiedTransactions=0,decodedTransactions=0;
-  for(const sig of pageSignatures){
+  const txBatch=await rpcClient.callBatch(pageSignatures.map(sig=>({method:"getTransaction",params:[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]})));
+  activeProvider=rpcClient.providerLabel();
+  for(let txIndex=0;txIndex<pageSignatures.length;txIndex++){
+   const sig=pageSignatures[txIndex];
    try{
-    const tq=await rpc(RPCS,"getTransaction",[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]);const tx=tq.result;activeProvider=rpcClient.providerLabel();
+    const tx=txBatch[txIndex];
+    if(tx?.__rpcError)throw new Error(tx.__rpcError);
     if(!tx?.meta||tx.meta.err||!sig.blockTime){skippedTransactions++;continue;}
     decodedTransactions++;
     const staticKeys=tx.transaction?.message?.accountKeys||[];
@@ -30,8 +34,6 @@ export async function onRequestGet({request,env}){
     const sent=delta.filter(x=>x.amount<0&&confirmedLegMints.has(x.mint)),received=delta.filter(x=>x.amount>0&&confirmedLegMints.has(x.mint));
     const dexConfirmed=evidence.classification==="DEX_SWAP_EVIDENCE";
     if(!dexConfirmed){if(delta.length>0)unclassifiedTransactions++;continue;}
-    // Only known DEX-program + wallet-linked transfer evidence enters the PnL ledger.
-    // Heuristic BUY/SELL candidates remain excluded until independently confirmed.
     for(const change of sent){mints.add(change.mint);events.push({mint:change.mint,side:"SELL",amount:Math.abs(change.amount),time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:"DEX_SWAP_EVIDENCE",dexPrograms:evidence.dexPrograms,confidence:evidence.confidence});}
     for(const change of received){mints.add(change.mint);events.push({mint:change.mint,side:"BUY",amount:change.amount,time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:"DEX_SWAP_EVIDENCE",dexPrograms:evidence.dexPrograms,confidence:evidence.confidence});}
     if(!sent.length&&!received.length)unclassifiedTransactions++;
