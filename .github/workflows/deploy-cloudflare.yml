@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run swap decoder tests
-        run: node --experimental-default-type=module --test tests/swap-decoder.test.mjs
+        run: node --test tests/swap-decoder.test.mjs
 
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
