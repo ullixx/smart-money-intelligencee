@@ -47,8 +47,8 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
         mints.set(mint,(mints.get(mint)||0)+delta);
         if (mint !== WSOL) {
           const owners = tokenOwners.get(mint) || new Set(); owners.add(wallet); tokenOwners.set(mint,owners);
-          const flow = tokenFlows.get(mint) || {mint, wallets: new Set(), netUnits: 0, inflowUnits: 0, outflowUnits: 0, events: 0};
-          flow.wallets.add(wallet); flow.netUnits += delta; flow.events++;
+          const flow = tokenFlows.get(mint) || {mint, wallets: new Set(), netUnits: 0, inflowUnits: 0, outflowUnits: 0, events: 0, eventDetails: []};
+          flow.wallets.add(wallet); flow.netUnits += delta; flow.events++; flow.eventDetails.push({wallet,signature:tx.signature||null,time:Number(tx.blockTime||0),amount:delta});
           if (delta > 0) flow.inflowUnits += delta; else flow.outflowUnits += Math.abs(delta);
           tokenFlows.set(mint,flow);
         }
@@ -100,7 +100,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
   for (const [mint, owners] of tokenOwners) if (owners.size>1) sharedTokenClusters.push({mint,wallets:[...owners],walletCount:owners.size,evidence:"Mehrere beobachtete Wallets hielten/bewegten denselben Mint; keine Beziehungsbestätigung"});
   const capitalFlows = [...tokenFlows.values()].map(f=>({
     mint:f.mint,walletCount:f.wallets.size,netUnits:round(f.netUnits),
-    inflowUnits:round(f.inflowUnits),outflowUnits:round(f.outflowUnits),events:f.events,
+    inflowUnits:round(f.inflowUnits),outflowUnits:round(f.outflowUnits),events:f.events,eventDetails:f.eventDetails,
     usdValue:null,valuationStatus:"UNAVAILABLE",valuationNote:"Historische USD-Kurse je Bewegungszeitpunkt sind noch nicht zugeordnet.",
     direction:f.netUnits>0?"NETTO-AKKUMULATION":f.netUnits<0?"NETTO-ABFLUSS":"AUSGEGLICHEN",
     wallets:[...f.wallets]
