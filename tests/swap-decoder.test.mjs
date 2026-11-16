@@ -155,11 +155,11 @@ test("interleaves inner instructions after their parent in execution order",()=>
  const SYSTEM_TRANSFER={programId:SYSTEM,parsed:{type:"transfer",info:{source:WALLET,destination:POOL,lamports:1000}}};
  const tx={transaction:{message:{accountKeys:[WALLET,JUP,SYSTEM],instructions:[
   {programId:JUP,accounts:[WALLET],data:"outer-jupiter"},
-  SYSTEM_TRANSFER
+  {programId:JUP,parsed:{type:"transfer",info:{}},accounts:[ATA_B],data:"outer-after"}
  ]}},meta:{innerInstructions:[{index:0,instructions:[
   {programId:JUP,accounts:[ATA_A,POOL],data:"inner-jupiter",stackHeight:2}
  ]}]}};
  const result=decodeSwapEvidence(tx,{wallet:WALLET});
- assert.deepEqual(result.dexInstructionTrace.map(x=>x.data),["outer-jupiter","inner-jupiter"]);
+ assert.deepEqual(result.dexInstructionTrace.map(x=>x.data),["outer-jupiter","inner-jupiter","outer-after"]);
  assert.deepEqual(result.parsedInstructionTypes,["transfer"]);
 });
