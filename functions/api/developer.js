@@ -1,6 +1,7 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 export async function onRequestGet({request,env}){
- const rpc=createSolanaRpc(env);\n const signatureRequestLimit=1000;
+ const rpc=createSolanaRpc(env);
+ const signatureRequestLimit=1000;
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Token-Mint-Adresse"},{status:400});
  try{
@@ -17,7 +18,8 @@ export async function onRequestGet({request,env}){
   const feePayer=keys.length?(typeof keys[0]==="string"?keys[0]:keys[0].pubkey):null;
   const instructions=tx?.transaction?.message?.instructions||[];
   const init=instructions.find(i=>i.parsed?.type==="initializeMint"||i.parsed?.type==="initializeMint2");
-  const initInfo=init?.parsed?.info||null;\n  const historyWindowStatus=signatureData.length>=signatureRequestLimit?"REQUEST_LIMIT_REACHED":"RPC_RETURNED_FEWER_THAN_REQUESTED_LIMIT";
+  const initInfo=init?.parsed?.info||null;
+  const historyWindowStatus=signatureData.length>=signatureRequestLimit?"REQUEST_LIMIT_REACHED":"RPC_RETURNED_FEWER_THAN_REQUESTED_LIMIT";
   return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:rpc.providerLabel(),address,checkedAt:new Date().toISOString(),signaturesChecked:signatureData.length,signatureRequestLimit,historyWindowComplete:null,historyWindowStatus,firstVisibleTransaction:{signature:oldest.signature,blockTime:tx?.blockTime??oldest.blockTime??null,slot:oldest.slot,feePayerCandidate:feePayer,initializeMintAuthority:initInfo?.mintAuthority||null,initializeFreezeAuthority:initInfo?.freezeAuthority||null,explorerUrl:"https://solscan.io/tx/"+oldest.signature},mintAuthority:parsed.mintAuthority||null,freezeAuthority:parsed.freezeAuthority||null,note:"Die älteste Signatur innerhalb des vom RPC gelieferten Fensters wurde geprüft. Ein Ergebnis unterhalb des angefragten Limits beweist keine vollständige Historie, da RPC-Anbieter niedrigere Antwortlimits setzen können. Die erste sichtbare Transaktion ist nicht zwingend die Mint-Erstellung. Fee-Payer ist nur ein Kandidat, kein bestätigter Entwickler."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana RPC mit automatischem Failover",rpcProvider:rpc.providerLabel(),error:"Developer-Daten nicht verfügbar",detail:e.message},{status:502,headers:{"Cache-Control":"no-store"}});}
 }
