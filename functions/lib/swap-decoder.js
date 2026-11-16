@@ -1,14 +1,20 @@
-const DEX_PROGRAMS={
- jupiter:"Jupiter",raydium:"Raydium",orca:"Orca Whirlpool",meteora:"Meteora",pumpfun:"Pump.fun"
-};
 const DEX_IDS={
- jupiter:["JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"],
- raydium:["675kPX9MHTjS2zt1qfr1NYHuzeL7N9T8r8Z3F5V5"],
- orca:["whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc"],
- meteora:["LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo"],
- pumpfun:["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"]
+ "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4":"Jupiter v6",
+ "JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB":"Jupiter v4",
+ "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8":"Raydium AMM v4",
+ "CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C":"Raydium CPMM",
+ "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK":"Raydium CLMM",
+ "LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj":"Raydium LaunchLab",
+ "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc":"Orca Whirlpool",
+ "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP":"Orca legacy",
+ "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo":"Meteora DLMM",
+ "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN":"Meteora DBC",
+ "Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB":"Meteora DAMM v1",
+ "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG":"Meteora DAMM v2",
+ "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P":"Pump.fun bonding curve",
+ "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA":"PumpSwap"
 };
-const allDexIds=new Map(Object.entries(DEX_IDS).flatMap(([key,ids])=>ids.map(id=>[id,DEX_PROGRAMS[key]])));
+
 const keyString=k=>typeof k==="string"?k:k?.pubkey;
 export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const message=tx?.transaction?.message||{},meta=tx?.meta||{};
@@ -17,7 +23,7 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const keyAt=i=>keyString(i<staticKeys.length?staticKeys[i]:loaded[i-staticKeys.length]);
  const instructions=[...(message.instructions||[]),...(meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
  const programIds=[...new Set(instructions.map(ix=>ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null)).filter(x=>typeof x==="string"))];
- const dexPrograms=[...new Set(programIds.filter(id=>allDexIds.has(id)).map(id=>allDexIds.get(id)))];
+ const dexPrograms=[...new Set(programIds.filter(id=>Object.hasOwn(DEX_IDS,id)).map(id=>DEX_IDS[id]))];
  const walletTokenAccounts=new Set([...(meta.preTokenBalances||[]),...(meta.postTokenBalances||[])].filter(b=>b.owner===wallet&&Number.isInteger(b.accountIndex)).map(b=>keyAt(b.accountIndex)).filter(Boolean));
  const parsedTypes=instructions.map(ix=>String(ix.parsed?.type||"").toLowerCase()).filter(Boolean);
  const tokenTransfers=[],systemTransfers=[];
