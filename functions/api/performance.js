@@ -23,15 +23,16 @@ export async function onRequestGet({request,env}){
     for(const b of tx.meta.preTokenBalances||[])if(b.owner===address)changes.set(b.mint,{mint:b.mint,amount:-Number(b.uiTokenAmount?.uiAmountString||0)});
     for(const b of tx.meta.postTokenBalances||[])if(b.owner===address){const v=changes.get(b.mint)||{mint:b.mint,amount:0};v.amount+=Number(b.uiTokenAmount?.uiAmountString||0);changes.set(b.mint,v);}
     const delta=[...changes.values()].filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
-    const sent=delta.filter(x=>x.amount<0),received=delta.filter(x=>x.amount>0);
     const evidence=decodeSwapEvidence(tx,{wallet:address,solDelta:sol,tokenChanges:delta});
+    const confirmedLegMints=new Set((evidence.walletTokenLegs||[]).filter(x=>x.side==="IN"||x.side==="OUT").map(x=>x.mint).filter(Boolean));
+    const sent=delta.filter(x=>x.amount<0&&confirmedLegMints.has(x.mint)),received=delta.filter(x=>x.amount>0&&confirmedLegMints.has(x.mint));
     const dexConfirmed=evidence.classification==="DEX_SWAP_EVIDENCE";
     if(!dexConfirmed){if(delta.length>0)unclassifiedTransactions++;continue;}
     // Only known DEX-program + wallet-linked transfer evidence enters the PnL ledger.
     // Heuristic BUY/SELL candidates remain excluded until independently confirmed.
     for(const change of sent){mints.add(change.mint);events.push({mint:change.mint,side:"SELL",amount:Math.abs(change.amount),time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:"DEX_SWAP_EVIDENCE",dexPrograms:evidence.dexPrograms,confidence:evidence.confidence});}
     for(const change of received){mints.add(change.mint);events.push({mint:change.mint,side:"BUY",amount:change.amount,time:sig.blockTime,signature:sig.signature,solDelta:sol,classification:"DEX_SWAP_EVIDENCE",dexPrograms:evidence.dexPrograms,confidence:evidence.confidence});}
-    if(!delta.length)unclassifiedTransactions++;
+    if(!sent.length&&!received.length)unclassifiedTransactions++;
    }catch(_){skippedTransactions++;}
   }
   const priceMap={};
