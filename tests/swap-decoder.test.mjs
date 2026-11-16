@@ -106,3 +106,25 @@ test("recognizes WSOL inflow as SOL consideration for a token sell candidate",()
  assert.equal(r.classification,"SELL_INFERRED");
  assert.equal(r.direction,"TOKEN_TO_SOL");
 });
+
+
+test("exposes fee payer, token mint and external counterparties for wallet-linked flows",()=>{
+ const tx={transaction:{message:{accountKeys:[WALLET,ATA_A,POOL],instructions:[
+  {programId:"spl-token",parsed:{type:"transferchecked",info:{source:POOL,destination:ATA_A,mint:"MintA",tokenAmount:{amount:"1000",decimals:2,uiAmountString:"10"}}}}
+ ]}},meta:{preTokenBalances:[{accountIndex:1,owner:WALLET,mint:"MintA"}],postTokenBalances:[]}};
+ const r=decodeSwapEvidence(tx,{wallet:WALLET,tokenChanges:[{mint:"MintA",amount:10}]});
+ assert.equal(r.feePayer,WALLET);
+ assert.equal(r.walletTokenTransfers[0].mint,"MintA");
+ assert.equal(r.walletTokenTransfers[0].rawAmount,"1000");
+ assert.deepEqual(r.counterparties,[POOL]);
+});
+
+test("recognizes an associated token account address alias when owner metadata is absent",()=>{
+ const tx={transaction:{message:{accountKeys:[WALLET,ATA_A,POOL],instructions:[
+  {program:"spl-associated-token-account",parsed:{type:"create",info:{accountAddress:ATA_A,wallet:WALLET,mint:"MintA"}}},
+  {program:"spl-token",parsed:{type:"transfer",info:{source:POOL,destination:ATA_A,amount:"10"}}}
+ ]}},meta:{preTokenBalances:[],postTokenBalances:[]}};
+ const r=decodeSwapEvidence(tx,{wallet:WALLET,tokenChanges:[{mint:"MintA",amount:10}]});
+ assert.equal(r.hasWalletTokenTransferIn,true);
+ assert.equal(r.walletTokenAccountsChecked,1);
+});
