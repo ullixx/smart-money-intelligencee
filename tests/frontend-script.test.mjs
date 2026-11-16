@@ -41,3 +41,20 @@ test("developer UI exposes mint history coverage limitations",()=>{
   assert.match(html,/RPC lieferte weniger Signaturen als angefragt/);
   assert.match(html,/RPC lieferte keine Signaturen/);
 });
+
+test("frontend includes skip navigation and reduced-motion support",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/class="skip-link" href="#main-content"/);
+ assert.match(html,/@media\(prefers-reduced-motion:reduce\)/);
+});
+test("frontend validates stored watchlist shape and catches storage write failures",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/Array\.isArray\(stored\)/);
+ assert.match(html,/function safeStoreJson\(key,value\)/);
+ assert.match(html,/catch\{return false;\}/);
+});
+test("frontend prevents duplicate form submissions while requests are running",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.equal((html.match(/bindBusySubmit\("(?:walletForm|entryForm|developerForm)"/g)||[]).length,3);
+ assert.match(html,/form\.dataset\.busy==="true"/);
+});
