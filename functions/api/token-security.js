@@ -49,7 +49,7 @@ export async function onRequestGet({request,env}){
       const decoded=decodeLockProgramAccount({programOwner:item.account?.owner,data:bytes,poolId:pool.pairAddress,poolType});
       return decoded.status==="VERIFIED_LOCK_STATE"?{account:item.pubkey,...decoded}:null;
      }).filter(Boolean);
-     lpControl={status:"PARTIAL",poolProgram,lockProgram:RAYDIUM_LOCK_PROGRAM,poolType,verifiedLocks,verifiedLockCount:verifiedLocks.length,lockVerification:"VERIFIED_ON_CHAIN",lockModel:"BURN_AND_EARN_PERMANENT_LOCK",unlockAt:null,reason:"Raydium-Lock-Program-Accounts wurden anhand des Programms, des Account-Discriminators und der Pool-Adresse geprüft. Burn & Earn ist ein permanentes Lock-Modell; ein Unlock-Zeitpunkt wird nicht behauptet.",checkedAt:new Date().toISOString()};
+     lpControl={status:"PARTIAL",poolProgram,lockProgram:RAYDIUM_LOCK_PROGRAM,poolType,verifiedLocks,verifiedLockCount:verifiedLocks.length,lockVerification:verifiedLocks.length?"VERIFIED_LOCKS_FOUND":"NO_LOCK_ACCOUNT_FOUND",lockModel:"BURN_AND_EARN_PERMANENT_LOCK",unlockAt:null,reason:"Raydium-Lock-Program-Accounts wurden anhand des Programms, des Account-Discriminators und der Pool-Adresse geprüft. Burn & Earn ist ein permanentes Lock-Modell; ein Unlock-Zeitpunkt wird nicht behauptet.",checkedAt:new Date().toISOString()};
     }else if(typeof encoded==="string"){
      const binary=atob(encoded),bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
      const decoded=decodeRaydiumV4LpMint({programOwner:poolProgram,data:bytes});
