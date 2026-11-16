@@ -1,26 +1,5 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
-const DEX_PROGRAM_IDS=new Set([
-  "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
-  "675kPX9MHTjS2zt1qfr1NYHuzeL7N9T8r8Z3F5V5",
-  "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
-  "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo",
-  "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
-]);
-const hasKnownDexInstruction=tx=>{
-  const keys=tx.transaction?.message?.accountKeys||[];
-  const loaded=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])];
-  const keyAt=index=>{
-    const key=index<keys.length?keys[index]:loaded[index-keys.length];
-    return typeof key==="string"?key:key?.pubkey;
-  };
-  const outer=tx.transaction?.message?.instructions||[];
-  const inner=(tx.meta?.innerInstructions||[]).flatMap(x=>x.instructions||[]);
-  return [...outer,...inner].some(ix=>{
-    let id=ix.programId;
-    if(!id&&Number.isInteger(ix.programIdIndex))id=keyAt(ix.programIdIndex);
-    return typeof id==="string"&&DEX_PROGRAM_IDS.has(id);
-  });
-};
+import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 export async function onRequestGet({ request, env }) {
   const url=new URL(request.url),address=(url.searchParams.get("address")||"").trim();
   if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
@@ -49,16 +28,12 @@ export async function onRequestGet({ request, env }) {
         for(const b of tx.meta.postTokenBalances||[])if(b.owner===address){const v=changes.get(b.mint)||{mint:b.mint,amount:0};v.amount+=Number(b.uiTokenAmount?.uiAmountString||0);changes.set(b.mint,v);}
         const tokenChanges=[...changes.values()].filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
         const received=tokenChanges.filter(x=>x.amount>0),sent=tokenChanges.filter(x=>x.amount<0);
-        let classification="UNCLEAR",classificationBasis="Nicht eindeutig";
-        const dexInstructionDetected=hasKnownDexInstruction(tx);
-        if(dexInstructionDetected&&((received.length>0&&sent.length>0)||(received.length>0&&solDelta!==null&&solDelta<0)||(sent.length>0&&solDelta!==null&&solDelta>0))){classification="DEX_SWAP_DETECTED";classificationBasis="Bekannte DEX-Programm-ID + gegenläufige Token-/SOL-Salden; Token-Gegenleistung wird aus Wallet-Salden rekonstruiert";}
-        else if(received.length>0&&sent.length>0){classification="SWAP_CANDIDATE";classificationBasis="Gegenläufige Token-Salden; unbekannter oder nicht bestätigter Router, daher Swap-Kandidat";}
-        else if(received.length>0&&sent.length===0&&solDelta!==null&&solDelta<0){classification="BUY_INFERRED";classificationBasis="Token-Zugang + SOL-Abgang; Kauf nur vermutet, kein bestätigtes DEX-Programm";}
-        else if(sent.length>0&&received.length===0&&solDelta!==null&&solDelta>0){classification="SELL_INFERRED";classificationBasis="Token-Abgang + SOL-Zugang; Verkauf nur vermutet, kein bestätigtes DEX-Programm";}
-        else if(tokenChanges.length>0){classification="TOKEN_MOVEMENT";classificationBasis="Token-Bewegung ohne eindeutig rekonstruierbare Gegenleistung";}
+        const evidence=decodeSwapEvidence(tx,{wallet:address,solDelta,tokenChanges});
+        const classification=evidence.classification;
+        const classificationBasis=evidence.basis;
         const assetsSent=sent.map(x=>({mint:x.mint,amount:Math.abs(x.amount)}));
         const assetsReceived=received.map(x=>({mint:x.mint,amount:x.amount}));
-        return {signature:item.signature,time:item.blockTime?new Date(item.blockTime*1000).toISOString():null,slot:item.slot??null,solDelta,tokenChanges,assetsSent,assetsReceived,swapDirection:assetsSent.length&&assetsReceived.length?"TOKEN_TO_TOKEN":assetsReceived.length&&solDelta<0?"SOL_TO_TOKEN":assetsSent.length&&solDelta>0?"TOKEN_TO_SOL":"UNRESOLVED",classification,classificationBasis,feeSol:(tx.meta.fee||0)/1e9,success:!tx.meta.err};
+        return {signature:item.signature,time:item.blockTime?new Date(item.blockTime*1000).toISOString():null,slot:item.slot??null,solDelta,tokenChanges,assetsSent,assetsReceived,swapDirection:evidence.direction,classification,classificationBasis,classificationConfidence:evidence.confidence,dexPrograms:evidence.dexPrograms,programIds:evidence.programIds,parsedInstructionTypes:evidence.parsedInstructionTypes,hasTokenTransfer:evidence.hasTokenTransfer,hasSystemTransfer:evidence.hasSystemTransfer,feeSol:(tx.meta.fee||0)/1e9,success:!tx.meta.err};
       }catch(error){skipReasons.rpcError++;const message=String(error?.message||error||"Unknown RPC error").slice(0,180);rpcErrorDetails[message]=(rpcErrorDetails[message]||0)+1;return null;}
     };
     const transactions=[];
@@ -76,7 +51,7 @@ export async function onRequestGet({ request, env }) {
       const analysedBatch=await Promise.all(selected.map((item,index)=>analyse(item,transactionResults[index])));
       for(const tx of analysedBatch){if(tx)transactions.push(tx);else skippedTransactions++;}
     }
-    const successful=transactions.filter(t=>t.success),buyClasses=["BUY_INFERRED","DEX_SWAP_DETECTED","SWAP_CANDIDATE"],sellClasses=["SELL_INFERRED","DEX_SWAP_DETECTED","SWAP_CANDIDATE"],buys=successful.reduce((n,t)=>n+(buyClasses.includes(t.classification)&&t.assetsReceived.length?1:0),0),sells=successful.reduce((n,t)=>n+(sellClasses.includes(t.classification)&&t.assetsSent.length?1:0),0),classificationCounts=successful.reduce((o,t)=>(o[t.classification]=(o[t.classification]||0)+1,o),{});
+    const successful=transactions.filter(t=>t.success),buyClasses=["BUY_INFERRED","DEX_SWAP_EVIDENCE","SWAP_CANDIDATE"],sellClasses=["SELL_INFERRED","DEX_SWAP_EVIDENCE","SWAP_CANDIDATE"],buys=successful.reduce((n,t)=>n+(buyClasses.includes(t.classification)&&t.assetsReceived.length?1:0),0),sells=successful.reduce((n,t)=>n+(sellClasses.includes(t.classification)&&t.assetsSent.length?1:0),0),classificationCounts=successful.reduce((o,t)=>(o[t.classification]=(o[t.classification]||0)+1,o),{});
     const ledgerMap=new Map();
     for(const tx of successful)for(const c of tx.tokenChanges){const v=ledgerMap.get(c.mint)||{mint:c.mint,netAmount:0,received:0,sent:0,transactions:0,firstSeen:tx.time,lastSeen:tx.time};v.netAmount+=c.amount;if(c.amount>0)v.received+=c.amount;else v.sent+=Math.abs(c.amount);v.transactions++;if(tx.time&&(!v.firstSeen||tx.time<v.firstSeen))v.firstSeen=tx.time;if(tx.time&&(!v.lastSeen||tx.time>v.lastSeen))v.lastSeen=tx.time;ledgerMap.set(c.mint,v);}
     const tokenLedger=[...ledgerMap.values()].sort((a,b)=>b.transactions-a.transactions);
@@ -97,8 +72,8 @@ export async function onRequestGet({ request, env }) {
     const dated=successful.filter(t=>t.time).map(t=>Date.parse(t.time)).filter(Number.isFinite).sort((a,b)=>a-b);
     const topTokens=tokenLedger.slice().sort((a,b)=>b.transactions-a.transactions).slice(0,5).map(t=>({mint:t.mint,transactions:t.transactions,received:t.received,sent:t.sent,netAmount:t.netAmount,share:transactions.length?t.transactions/transactions.length:0}));
     const buySellTotal=buys+sells;
-    const profile={firstObserved:dated.length?new Date(dated[0]).toISOString():null,lastObserved:dated.length?new Date(dated[dated.length-1]).toISOString():null,activeDays:new Set(dated.map(t=>new Date(t).toISOString().slice(0,10))).size,buySellRatio:buySellTotal?buys/buySellTotal:null,buySellBasis:"Swap-Seite aus Token-Zu-/Abgängen; DEX_SWAP_DETECTED und SWAP_CANDIDATE werden berücksichtigt",topTokens,topTokenShare:topTokens.length?topTokens[0].share:0,repeatTokenCount:repeatTokens,knownDexShare:successful.length?successful.filter(t=>t.classification==="DEX_SWAP_DETECTED").length/successful.length:0};
+    const profile={firstObserved:dated.length?new Date(dated[0]).toISOString():null,lastObserved:dated.length?new Date(dated[dated.length-1]).toISOString():null,activeDays:new Set(dated.map(t=>new Date(t).toISOString().slice(0,10))).size,buySellRatio:buySellTotal?buys/buySellTotal:null,buySellBasis:"Swap-Seite aus Token-Zu-/Abgängen; DEX_SWAP_EVIDENCE und SWAP_CANDIDATE werden berücksichtigt",topTokens,topTokenShare:topTokens.length?topTokens[0].share:0,repeatTokenCount:repeatTokens,knownDexShare:successful.length?successful.filter(t=>t.classification==="DEX_SWAP_EVIDENCE").length/successful.length:0};
     rpcProvider=rpc.providerLabel();
-    return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider,rpcBudget:rpc.budget(),address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,requestedTransactions:selected.length,skippedTransactions,skipReasons,rpcErrorDetails,coverage:Math.round(transactions.length/Math.max(1,selected.length)*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,classificationCounts,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,dexSwapsDetected:successful.filter(t=>t.classification==="DEX_SWAP_DETECTED").length,distinctTokens:tokenLedger.length,netSol,repeatTokens,repeatedBuyTokens:smartMoneySignals.length,burstBuyTokens:smartMoneySignals.filter(x=>x.burstWithin30m).length},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},walletProfile:profile,tokenLedger,smartMoneySignals,transactions,note:"Pro Anfrage maximal 12 der neuesten Signaturen, um Cloudflare-Subrequest-Limits zu vermeiden. skipReasons unterscheidet RPC-Fehler, nicht gefundene Transaktionen, fehlende Metadaten und fehlgeschlagene Transaktionen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Bekannte DEX-Programm-IDs plus gegenläufige Token-Salden werden als DEX_SWAP_DETECTED markiert; unbekannte Router/Programme bleiben Kandidaten. Das bestätigt die DEX-Ausführung, aber nicht automatisch den wirtschaftlichen Swap-Pfad oder Ausführungspreis. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
+    return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider,rpcBudget:rpc.budget(),address,checkedAt:new Date().toISOString(),signatureCount:(signatures||[]).length,requestedTransactions:selected.length,skippedTransactions,skipReasons,rpcErrorDetails,coverage:Math.round(transactions.length/Math.max(1,selected.length)*100),summary:{analysed:transactions.length,successful:successful.length,inferredBuys:buys,inferredSells:sells,classificationCounts,swapCandidates:successful.filter(t=>t.classification==="SWAP_CANDIDATE").length,dexSwapsDetected:successful.filter(t=>t.classification==="DEX_SWAP_EVIDENCE").length,distinctTokens:tokenLedger.length,netSol,repeatTokens,repeatedBuyTokens:smartMoneySignals.length,burstBuyTokens:smartMoneySignals.filter(x=>x.burstWithin30m).length},activityProfile:{score:activityScore,label:activityLabel,method:"Aktivitätsscore aus geprüften Transaktionen, vermuteten Käufen/Verkäufen und mehrfach berührten Token. Kein Gewinn-, Qualitäts- oder Smart-Money-Score."},walletProfile:profile,tokenLedger,smartMoneySignals,transactions,note:"Pro Anfrage maximal 12 der neuesten Signaturen, um Cloudflare-Subrequest-Limits zu vermeiden. skipReasons unterscheidet RPC-Fehler, nicht gefundene Transaktionen, fehlende Metadaten und fehlgeschlagene Transaktionen. Nicht auswertbare oder fehlgeschlagene Transaktionen werden gezählt und ausgelassen. BUY/SELL sind Heuristiken. Bekannte DEX-Programm-IDs plus gegenläufige Token-Salden werden als DEX_SWAP_EVIDENCE markiert; unbekannte Router/Programme bleiben Kandidaten. Das bestätigt die DEX-Ausführung, aber nicht automatisch den wirtschaftlichen Swap-Pfad oder Ausführungspreis. Gebühren und Rent können SOL-Bewegungen verfälschen. Kein historischer USD-Kurs, kein PnL und keine Trefferquote."},{headers:{"Cache-Control":"no-store"}});
   }catch(e){rpcProvider=rpc.providerLabel();return Response.json({status:"UNAVAILABLE",source:"Solana RPC mit automatischem Failover",rpcProvider,address,checkedAt:new Date().toISOString(),error:"RPC momentan nicht erreichbar oder rate-limited",detail:e.message,transactions:[]},{status:502});}
 }
