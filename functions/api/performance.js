@@ -1,6 +1,7 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 import { parseHistoryWindow, buildHistoryPagination } from "../lib/history-pagination.js";
+import { selectPriceResolution, nearestCandle } from "../lib/price-resolution.js";
 const GT="https://api.geckoterminal.com/api/v2";
 const headers={"accept":"application/json;version=20230203"};
 const json=async(url,opts={})=>{const r=await fetch(url,opts);if(!r.ok)throw new Error("HTTP "+r.status+" bei "+url);return r.json();};
@@ -43,20 +44,24 @@ export async function onRequestGet({request,env}){
     const pool=(Array.isArray(pairs)?pairs:[]).filter(p=>(p.baseToken?.address===mint||p.quoteToken?.address===mint)&&p.pairAddress).sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
     if(!pool) {priceMap[mint]={status:"UNAVAILABLE",reason:"Kein passender DEX-Screener-Pool"};continue;}
     const poolToken=pool.baseToken?.address===mint?"base":"quote";
-    const end=Math.max(...events.filter(e=>e.mint===mint).map(e=>e.time));
-    const before=Math.floor(end/3600)*3600+3600;
-    const u=GT+"/networks/solana/pools/"+pool.pairAddress+"/ohlcv/hour?aggregate=1&limit=1000&before_timestamp="+before+"&currency=usd&token="+poolToken;
+    const mintEvents=events.filter(e=>e.mint===mint);
+    const resolution=selectPriceResolution(mintEvents);
+    const interval=resolution.timeframe==="minute"?60:3600;
+    const end=Math.max(...mintEvents.map(e=>e.time));
+    const before=Math.floor(end/interval)*interval+interval;
+    const u=GT+"/networks/solana/pools/"+pool.pairAddress+"/ohlcv/"+resolution.timeframe+"?aggregate="+resolution.aggregate+"&limit=1000&before_timestamp="+before+"&currency=usd&token="+poolToken;
     const candles=await json(u,{headers});
     const list=candles?.data?.attributes?.ohlcv_list||[];
-    priceMap[mint]={status:list.length?"HISTORICAL":"UNAVAILABLE",pairAddress:pool.pairAddress,poolUrl:pool.url,candles:list.map(x=>({time:x[0],open:Number(x[1]),high:Number(x[2]),low:Number(x[3]),close:Number(x[4])}))};
+    priceMap[mint]={status:list.length?"HISTORICAL":"UNAVAILABLE",resolution,pairAddress:pool.pairAddress,poolUrl:pool.url,candles:list.map(x=>({time:x[0],open:Number(x[1]),high:Number(x[2]),low:Number(x[3]),close:Number(x[4])}))};
    }catch(e){priceMap[mint]={status:"UNAVAILABLE",reason:"Historische Kursdaten nicht abrufbar: "+e.message};}
   }
   const priced=events.map(e=>{
    const p=priceMap[e.mint],candles=p?.candles||[];
    if(!candles.length)return {...e,priceUsd:null,priceStatus:"UNAVAILABLE"};
-   let best=candles.reduce((a,c)=>Math.abs(c.time-e.time)<Math.abs(a.time-e.time)?c:a,candles[0]);
-   if(Math.abs(best.time-e.time)>3600)return {...e,priceUsd:null,priceStatus:"NO_NEAR_CANDLE"};
-   return {...e,priceUsd:best.close,priceTime:best.time,priceStatus:"HISTORICAL_HOURLY_ESTIMATE"};
+   const resolution=p?.resolution||{toleranceSeconds:3600,method:"HOURLY_ESTIMATE"};
+   const best=nearestCandle(candles,e.time,resolution.toleranceSeconds);
+   if(!best)return {...e,priceUsd:null,priceStatus:"NO_NEAR_CANDLE"};
+   return {...e,priceUsd:best.close,priceTime:best.time,priceStatus:"HISTORICAL_"+resolution.method};
   });
   const byMint=new Map();for(const e of priced){if(!byMint.has(e.mint))byMint.set(e.mint,[]);byMint.get(e.mint).push(e);}
   const results=[];
@@ -82,7 +87,7 @@ export async function onRequestGet({request,env}){
     }
    }
    const pricedLegs=arr.filter(x=>x.priceUsd!==null);const tokenInflowUsd=pricedLegs.filter(x=>x.side==="BUY").reduce((n,x)=>n+x.amount*x.priceUsd,0);const tokenOutflowUsd=pricedLegs.filter(x=>x.side==="SELL").reduce((n,x)=>n+x.amount*x.priceUsd,0);
-   results.push({mint,buys:arr.filter(x=>x.side==="BUY").length,sells:arr.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?realized:null,profitableClosedLots,losingClosedLots,closedLots,winRateClosedLots:closedLots?profitableClosedLots/closedLots:null,averageHoldingDays:closedLots?totalHoldingSeconds/closedLots/86400:null,openLots:lots.length,unmatchedEvents:unmatched,estimatedTokenLegsUsd:{inflow:tokenInflowUsd,outflow:tokenOutflowUsd,net:tokenInflowUsd-tokenOutflowUsd,pricedEvents:pricedLegs.length,totalEvents:arr.length,status:pricedLegs.length===arr.length?"HISTORICAL":"PARTIAL",method:"Token-Menge × nächstgelegener historischer Stundenkerzen-Schlusskurs; keine exakte Swap-Gegenleistung"},events:arr.map(({mint,...x})=>x),priceSource:priceMap[mint]?.status||"UNAVAILABLE",poolUrl:priceMap[mint]?.poolUrl||null});
+   results.push({mint,buys:arr.filter(x=>x.side==="BUY").length,sells:arr.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?realized:null,profitableClosedLots,losingClosedLots,closedLots,winRateClosedLots:closedLots?profitableClosedLots/closedLots:null,averageHoldingDays:closedLots?totalHoldingSeconds/closedLots/86400:null,openLots:lots.length,unmatchedEvents:unmatched,estimatedTokenLegsUsd:{inflow:tokenInflowUsd,outflow:tokenOutflowUsd,net:tokenInflowUsd-tokenOutflowUsd,pricedEvents:pricedLegs.length,totalEvents:arr.length,status:pricedLegs.length===arr.length?"HISTORICAL":"PARTIAL",method:"Token-Menge × nächstgelegener historischer Stundenkerzen-Schlusskurs; keine exakte Swap-Gegenleistung"},events:arr.map(({mint,...x})=>x),priceSource:priceMap[mint]?.resolution?.method||priceMap[mint]?.status||"UNAVAILABLE",poolUrl:priceMap[mint]?.poolUrl||null});
   }
   const closed=results.filter(x=>x.estimatedRealizedPnlUsd!==null),wins=closed.filter(x=>x.estimatedRealizedPnlUsd>0).length,closedLots=results.reduce((n,x)=>n+(x.closedLots||0),0),winningLots=results.reduce((n,x)=>n+(x.profitableClosedLots||0),0),losingLots=results.reduce((n,x)=>n+(x.losingClosedLots||0),0),holdingDays=results.reduce((n,x)=>n+(x.averageHoldingDays||0)*(x.closedLots||0),0);
   return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover + DEX Screener + GeckoTerminal OHLCV",rpcProvider:activeProvider,address,checkedAt:new Date().toISOString(),events:priced.length,signaturesReceived:pageSignatures.length,transactionsRequested:pageSignatures.length,skippedTransactions,unclassifiedTransactions,coverage:Math.round(decodedTransactions/Math.max(1,pageSignatures.length)*100),decodedTransactions,confirmedSwapTransactions:new Set(events.map(e=>e.signature)).size,historyStatus:historyPagination.status,historyPagination,tokenResults:results,summary:{tokens:results.length,pricedEvents:priced.filter(x=>x.priceUsd!==null).length,unpricedEvents:priced.filter(x=>x.priceUsd===null).length,estimatedTokenLegInflowUsd:results.reduce((n,x)=>n+(x.estimatedTokenLegsUsd?.inflow||0),0),estimatedTokenLegOutflowUsd:results.reduce((n,x)=>n+(x.estimatedTokenLegsUsd?.outflow||0),0),closedTokens:closed.length,positiveTokenPnlTokens:wins,tokenLevelPositiveShare:closed.length?wins/closed.length:null,closedFifoLots:closedLots,winningFifoLots:winningLots,losingFifoLots:losingLots,fifoLotWinRate:closedLots?winningLots/closedLots:null,averageHoldingDays:closedLots?holdingDays/closedLots:null,reputationStatus:closedLots>=10?"PARTIAL":"INSUFFICIENT_DATA"},note:"Pro Abruf eine paginierte Transaktionsseite (standardmäßig 25, maximal 30 Signaturen) und bis zu 8 Token. Bei hasMore=true mit nextBefore die nächste Seite abrufen. FIFO und PnL gelten ausschließlich für die aktuelle Seite und werden noch nicht seitenübergreifend zusammengeführt. RPC_PAGE_EXHAUSTED bedeutet nur, dass der aktuelle RPC-Aufruf keine weitere Seite geliefert hat, nicht dass die gesamte Wallet-Historie vollständig ist. RPC-Abdeckung misst erfolgreich geladene Transaktionen; unklassifizierte Bewegungen werden separat gezählt. Nur DEX_SWAP_EVIDENCE aus gemeinsamem Decoder (bekanntes DEX-Programm plus Wallet-Transfer-/Saldo-Indizien) gelangt in die FIFO-PnL-Auswertung; heuristische BUY/SELL-Kandidaten bleiben ausgeschlossen. FIFO-PnL ist eine Näherung aus Stundenkerzen-Schlusskursen und dem aktuell ermittelten Pool, nicht der exakte Ausführungspreis. FIFO-Lot-Trefferquote und Haltedauer sind stundenkursbasierte Näherungen, keine vollständige Wallet-Reputation. Keine Gebühren-/Slippage-/MEV-/Steuerberechnung. Unbepreiste BUYs blockieren die FIFO-Zuordnung ihrer späteren SELL-Mengen, statt falsche Gewinne zu erzeugen. Trefferquote auf Token-Ebene, keine Trade-Trefferquote."},{headers:{"Cache-Control":"no-store"}});
