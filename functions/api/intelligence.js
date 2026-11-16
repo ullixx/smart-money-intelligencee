@@ -52,7 +52,7 @@ export async function onRequestGet({request,env}){
   }));
   const remainingFlows=analysis.capitalFlows.slice(5).map(flow=>({...flow,usdValue:null,valuationStatus:"UNAVAILABLE",valuationNote:"Außerhalb des aktuellen Bewertungsbudgets (Top 5 Kapitalflüsse)."}));
   const capitalFlows=[...valuedFlows,...remainingFlows];
-  const capitalFlowStatus=capitalFlows.some(x=>x.valuationStatus==="HISTORICAL")?"HISTORICAL":capitalFlows.some(x=>x.valuationStatus==="PARTIAL")?"PARTIAL":"UNAVAILABLE";
+  const flowStatuses=capitalFlows.map(x=>x.valuationStatus);const capitalFlowStatus=flowStatuses.length&&flowStatuses.every(x=>x==="HISTORICAL")?"HISTORICAL":flowStatuses.some(x=>x==="HISTORICAL"||x==="PARTIAL")?"PARTIAL":"UNAVAILABLE";
   return Response.json({...analysis,capitalFlows,dataStatus:{...analysis.dataStatus,capitalFlows:capitalFlowStatus},walletDiscovery:discovered,seedWallets:seeds,expandedWallets:expandedAddresses,coverage:{...analysis.coverage,seedWallets:seeds.length,discoveredWallets:expandedAddresses.length,transactionsAnalysed:analysis.coverage.transactionsAnalysed,window:"Bis zu 5 jüngste Transaktionen je Seed- und Kandidaten-Wallet"},source:"Solana RPC · DEX Screener · GeckoTerminal historische Kerzen",rpcProvider:rpc.providerLabel(),rpcBudget:rpc.budget(),requestedSignatures:first.requested+second.requested},{headers:{"Cache-Control":"no-store"}});
  }catch(error){
   return Response.json({status:"UNAVAILABLE",source:"Solana RPC",rpcProvider:rpc.providerLabel(),rpcBudget:rpc.budget(),error:"C–F Analyse konnte nicht vollständig geladen werden",detail:String(error?.message||error)},{status:502,headers:{"Cache-Control":"no-store"}});
