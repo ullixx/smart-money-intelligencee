@@ -28,12 +28,13 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  // Token-Konten auch dann der Wallet zuordnen, wenn RPC-Metadaten
  // owner/accountIndex bei neu angelegten oder geschlossenen ATAs auslassen.
  const walletTokenAccounts=new Set([...(meta.preTokenBalances||[]),...(meta.postTokenBalances||[])].filter(b=>b.owner===wallet&&Number.isInteger(b.accountIndex)).map(b=>keyAt(b.accountIndex)).filter(Boolean));
+ const tokenAccountMints=new Map([...(meta.preTokenBalances||[]),...(meta.postTokenBalances||[])].filter(b=>Number.isInteger(b.accountIndex)&&b.mint).map(b=>[keyAt(b.accountIndex),b.mint]));
  const parsedTypes=instructions.map(ix=>String(ix.parsed?.type||"").toLowerCase()).filter(Boolean);
  for(const ix of instructions){
   const info=ix.parsed?.info||{},type=String(ix.parsed?.type||"").toLowerCase();
   const account=info.account||info.accountAddress||info.tokenAccount||null;
   if(account&&(info.wallet===wallet||info.owner===wallet))walletTokenAccounts.add(account);
-  if(["initializeaccount","initializeaccount2","initializeaccount3"].includes(type)&&info.owner===wallet&&info.account)walletTokenAccounts.add(info.account);
+  if(["initializeaccount","initializeaccount2","initializeaccount3"].includes(type)&&info.owner===wallet){const account=info.account||info.accountAddress||info.tokenAccount;if(account)walletTokenAccounts.add(account);}
  }
  const tokenTransfers=[],systemTransfers=[];
  for(const ix of instructions){
@@ -42,7 +43,7 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
   if(["transfer","transferchecked"].includes(type)){
    const source=info.source||null,destination=info.destination||null;
    const sourceOwned=!!source&&walletTokenAccounts.has(source),destinationOwned=!!destination&&walletTokenAccounts.has(destination);
-   tokenTransfers.push({source,destination,sourceOwned,destinationOwned,amount:info.tokenAmount?.uiAmountString??info.amount??null,program:id});
+   tokenTransfers.push({source,destination,sourceOwned,destinationOwned,mint:info.mint||tokenAccountMints.get(source)||tokenAccountMints.get(destination)||null,amount:info.tokenAmount?.uiAmountString??info.amount??null,rawAmount:info.tokenAmount?.amount??info.amount??null,decimals:info.tokenAmount?.decimals??null,program:id});
   }
   if(id==="11111111111111111111111111111111"&&["transfer","transferwithseed"].includes(type)){
    const source=info.source||null,destination=info.destination||null;
@@ -83,5 +84,7 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
   classification="TOKEN_TRANSFER";confidence="MEDIUM";basis="Parsed SPL-Token-Transfer mit Wallet-eigenem Token-Konto";
  }
  const direction=hasWalletTokenTransferOut&&hasWalletTokenTransferIn?"TOKEN_TO_TOKEN":hasWalletTokenTransferIn&&solOut?"SOL_TO_TOKEN":hasWalletTokenTransferOut&&solIn?"TOKEN_TO_SOL":"UNRESOLVED";
- return {classification,confidence,basis,direction,dexPrograms,programIds,wrappedSolMint:WSOL_MINT,wrappedSolDelta:wrappedSolChange,hasWrappedSolIn,hasWrappedSolOut,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
+ const feePayer=keyAt(0)||null;
+ const counterparties=[...new Set([...walletTokenTransfers.flatMap(x=>[x.sourceOwned?null:x.source,x.destinationOwned?null:x.destination]),...systemTransfers.flatMap(x=>[x.fromWallet?null:x.source,x.toWallet?null:x.destination])].filter(x=>typeof x==="string"&&x!==wallet))];
+ return {classification,confidence,basis,direction,feePayer,counterparties,dexPrograms,programIds,wrappedSolMint:WSOL_MINT,wrappedSolDelta:wrappedSolChange,hasWrappedSolIn,hasWrappedSolOut,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
 }
