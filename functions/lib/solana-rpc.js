@@ -33,7 +33,9 @@ export function createSolanaRpc(env){
     try{
      const payload=await send({url:endpoint.url,body});
      const entries=Array.isArray(body)?payload:(payload?[payload]:[]);
-     const rpcError=entries.find(x=>x?.error);
+     // Batch members are independent: preserve successful results and let callBatch
+     // expose an error only for the corresponding request ID.
+     const rpcError=Array.isArray(body)?null:entries.find(x=>x?.error);
      if(rpcError){
       const error=new Error("Solana RPC "+(rpcError.error.code??"Fehler")+": "+(rpcError.error.message||"Unbekannter RPC-Fehler"));
       error.code=rpcError.error.code;
