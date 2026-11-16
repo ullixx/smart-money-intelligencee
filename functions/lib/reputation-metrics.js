@@ -70,6 +70,8 @@ export function aggregatePerformancePages(pages = []) {
       estimatedRealizedPnlUsd: matchedAmount ? round(realized) : null,
       matchedTokenAmount: round(matchedAmount), closedLots,
       closedTrades, winningTrades, losingTrades, partialClosedTrades,
+      profitableClosedLots: winningTrades, losingClosedLots: losingTrades,
+      winRateClosedLots: closedTrades ? winningTrades / closedTrades : null,
       averageWinUsd: winningTrades ? round(grossProfit / winningTrades) : null,
       averageLossUsd: losingTrades ? round(grossLoss / losingTrades) : null,
       grossProfitUsd: round(grossProfit), grossLossUsd: round(grossLoss),
