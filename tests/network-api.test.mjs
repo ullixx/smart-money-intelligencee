@@ -4,7 +4,7 @@ import { onRequestGet } from "../functions/api/network.js";
 
 test("checks five wallets within the RPC request budget using one transaction batch", async () => {
   const originalFetch = globalThis.fetch;
-  const wallets = Array.from({ length: 5 }, (_, index) => String(index + 1).repeat(32));
+  const wallets = ["11111111111111111111111111111111","TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA","So11111111111111111111111111111111111111112","JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4","675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"];
   const signatureWallet = new Map();
   let httpRequests = 0;
   let batchRequests = 0;
@@ -67,7 +67,7 @@ test("checks five wallets within the RPC request budget using one transaction ba
 
 test("counts every transaction once when the RPC batch itself fails", async () => {
   const originalFetch = globalThis.fetch;
-  const wallets = ["1", "2"].map(char => char.repeat(32));
+  const wallets = ["11111111111111111111111111111111","TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"];
   globalThis.fetch = async (_url, options) => {
     const body = JSON.parse(options.body);
     if (Array.isArray(body)) throw new Error("batch transport failed");
