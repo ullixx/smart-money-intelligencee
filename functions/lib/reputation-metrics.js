@@ -23,14 +23,13 @@ export function aggregatePerformancePages(pages = []) {
     events.sort((a, b) => a.time - b.time || String(a.signature).localeCompare(String(b.signature)));
     const lots = [];
     let realized = 0, matchedAmount = 0, winningLots = 0, losingLots = 0, closedLots = 0;
-    let holdingSeconds = 0, unmatchedEvents = 0, pricedBuys = 0, pricedSells = 0;
+    let holdingSeconds = 0, unmatchedEvents = 0, grossProfit = 0, grossLoss = 0;
 
     for (const event of events) {
       const amount = Number(event.amount);
       if (!Number.isFinite(amount) || amount <= 0) { unmatchedEvents++; continue; }
       if (event.side === "BUY") {
         lots.push({ amount, price: Number.isFinite(event.priceUsd) ? event.priceUsd : null, time: event.time });
-        if (Number.isFinite(event.priceUsd)) pricedBuys++;
         else unmatchedEvents++;
         continue;
       }
@@ -43,6 +42,8 @@ export function aggregatePerformancePages(pages = []) {
         } else {
           const pnl = (event.priceUsd - lot.price) * quantity;
           realized += pnl;
+          if (pnl > 0) grossProfit += pnl;
+          else if (pnl < 0) grossLoss += Math.abs(pnl);
           matchedAmount += quantity;
           closedLots++;
           holdingSeconds += Math.max(0, event.time - lot.time);
@@ -63,6 +64,10 @@ export function aggregatePerformancePages(pages = []) {
       estimatedRealizedPnlUsd: matchedAmount ? round(realized) : null,
       matchedTokenAmount: round(matchedAmount), closedLots,
       profitableClosedLots: winningLots, losingClosedLots: losingLots,
+      averageWinUsd: winningLots ? round(grossProfit / winningLots) : null,
+      averageLossUsd: losingLots ? round(grossLoss / losingLots) : null,
+      grossProfitUsd: round(grossProfit), grossLossUsd: round(grossLoss),
+      profitFactor: grossLoss > 0 ? round(grossProfit / grossLoss) : (grossProfit > 0 ? "INFINITE" : null),
       winRateClosedLots: closedLots ? winningLots / closedLots : null,
       averageHoldingDays: closedLots ? holdingSeconds / closedLots / 86400 : null,
       openLots: lots.length, unmatchedEvents,
