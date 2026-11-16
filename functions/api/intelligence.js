@@ -30,7 +30,7 @@ export async function onRequestGet({request,env}){
   const analysis=analyseIntelligence({wallets:allWallets,transactionsByWallet});
   const valuedFlows=await Promise.all(analysis.capitalFlows.slice(0,5).map(async flow=>{
    try{
-    const pairsResponse=await fetch("https://api.dexscreener.com/token-pairs/v1/solana/"+flow.mint);
+    const pairsResponse=await fetch("https://api.dexscreener.com/token-pairs/v1/solana/"+flow.mint,{signal:AbortSignal.timeout(10000)});
     if(!pairsResponse.ok)throw new Error("DEX-Pool nicht abrufbar");
     const pairs=await pairsResponse.json();
     const pool=(Array.isArray(pairs)?pairs:[]).filter(p=>(p.baseToken?.address===flow.mint||p.quoteToken?.address===flow.mint)&&p.pairAddress).sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
@@ -42,7 +42,7 @@ export async function onRequestGet({request,env}){
     const before=Math.floor(end/interval)*interval+interval;
     const token=pool.baseToken?.address===flow.mint?"base":"quote";
     const url=GT+"/networks/solana/pools/"+pool.pairAddress+"/ohlcv/"+resolution.timeframe+"?aggregate="+resolution.aggregate+"&limit=1000&before_timestamp="+before+"&currency=usd&token="+token;
-    const response=await fetch(url,{headers:GT_HEADERS});
+    const response=await fetch(url,{headers:GT_HEADERS,signal:AbortSignal.timeout(10000)});
     if(!response.ok)throw new Error("Historische Kerzen nicht abrufbar");
     const payload=await response.json();
     const candles=(payload?.data?.attributes?.ohlcv_list||[]).map(x=>({time:x[0],close:Number(x[4])}));
