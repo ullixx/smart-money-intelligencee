@@ -17,3 +17,30 @@ test("matches only a candle within the configured tolerance", () => {
   assert.equal(nearestCandle(candles,190,20).close,2);
   assert.equal(nearestCandle(candles,250,20),null);
 });
+
+import { deriveUsdcExecutionPrice, SOLANA_USDC_MINT } from "../functions/lib/price-resolution.js";
+
+test("derives a BUY execution price from the wallet's USDC outflow", () => {
+  assert.equal(deriveUsdcExecutionPrice({
+    mint: "TokenMint", amount: 1000, side: "BUY",
+    tokenChanges: [{ mint: "TokenMint", amount: 1000 }, { mint: SOLANA_USDC_MINT, amount: -25 }]
+  }), 0.025);
+});
+
+test("derives a SELL execution price from the wallet's USDC inflow", () => {
+  assert.equal(deriveUsdcExecutionPrice({
+    mint: "TokenMint", amount: 1000, side: "SELL",
+    tokenChanges: [{ mint: "TokenMint", amount: -1000 }, { mint: SOLANA_USDC_MINT, amount: 25 }]
+  }), 0.025);
+});
+
+test("does not guess a price for multi-hop token swaps or mismatched quote direction", () => {
+  assert.equal(deriveUsdcExecutionPrice({
+    mint: "TokenMint", amount: 1000, side: "BUY",
+    tokenChanges: [{ mint: "TokenMint", amount: 1000 }, { mint: "OtherMint", amount: -2 }, { mint: SOLANA_USDC_MINT, amount: -25 }]
+  }), null);
+  assert.equal(deriveUsdcExecutionPrice({
+    mint: "TokenMint", amount: 1000, side: "BUY",
+    tokenChanges: [{ mint: "TokenMint", amount: 1000 }, { mint: SOLANA_USDC_MINT, amount: 25 }]
+  }), null);
+});
