@@ -30,15 +30,6 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
       const time = Number(tx.blockTime || 0) * 1000;
       if (time) activityDays.add(new Date(time).toISOString().slice(0,10));
       fees += Number(meta.fee || 0) / 1e9;
-      for (const ix of [...(message.instructions || []), ...(meta.innerInstructions || []).flatMap(x=>x.instructions || [])]) {
-        const parsed = ix.parsed || {}, info = parsed.info || {}, type = String(parsed.type || "").toLowerCase();
-        const program = ix.programId || (Number.isInteger(ix.programIdIndex) ? keys[ix.programIdIndex] : null);
-        if (program === SYSTEM_PROGRAM && ["transfer","transferwithseed"].includes(type)) {
-          const source = info.source, destination = info.destination, amount = Number(info.lamports || 0) / 1e9;
-          if (source === wallet && destination && destination !== wallet) { solOut += amount; counterparties.add(destination); }
-          if (destination === wallet && source && source !== wallet) { solIn += amount; counterparties.add(source); }
-        }
-      }
       const before = new Map();
       for (const b of meta.preTokenBalances || []) if (b.owner === wallet) before.set(b.mint, (before.get(b.mint)||0)-Number(b.uiTokenAmount?.uiAmountString || 0));
       for (const b of meta.postTokenBalances || []) if (b.owner === wallet) before.set(b.mint, (before.get(b.mint)||0)+Number(b.uiTokenAmount?.uiAmountString || 0));
@@ -57,8 +48,13 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
       const tokenChanges=[...before.entries()].map(([mint,amount])=>({mint,amount})).filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
       const evidence=decodeSwapEvidence(tx,{wallet,tokenChanges});
       for(const transfer of evidence.systemTransfers){
-        const peer=transfer.fromWallet?transfer.destination:transfer.toWallet?transfer.source:null;
-        if(peer&&peer!==wallet){counterparties.add(peer);if(!walletSet.has(peer)){candidates.set(peer,(candidates.get(peer)||0)+1);candidateReasons.set(peer,"SOL_TRANSFER_COUNTERPARTY");}}
+        if(!transfer.rentRelated){
+          const amount=Number(transfer.lamports||0)/1e9;
+          const peer=transfer.fromWallet?transfer.destination:transfer.toWallet?transfer.source:null;
+          if(transfer.fromWallet)solOut+=amount;
+          if(transfer.toWallet)solIn+=amount;
+          if(peer&&peer!==wallet){counterparties.add(peer);if(!walletSet.has(peer)){candidates.set(peer,(candidates.get(peer)||0)+1);candidateReasons.set(peer,"SOL_TRANSFER_COUNTERPARTY");}}
+        }
       }
       if(evidence.classification==="DEX_SWAP_EVIDENCE"){
         confirmedDexSwaps++;
