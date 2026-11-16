@@ -5,7 +5,7 @@ import { selectPriceResolution, nearestCandle, deriveUsdcExecutionPrice, SOLANA_
 import { aggregatePerformancePages } from "../lib/reputation-metrics.js";
 const GT="https://api.geckoterminal.com/api/v2";
 const headers={"accept":"application/json;version=20230203"};
-const json=async(url,opts={})=>{const r=await fetch(url,opts);if(!r.ok)throw new Error("HTTP "+r.status+" bei "+url);return r.json();};
+const json=async(url,opts={})=>{const r=await fetch(url,{...opts,signal:opts.signal??AbortSignal.timeout(10000)});if(!r.ok)throw new Error("HTTP "+r.status+" bei "+url);return r.json();};
 
 export async function onRequestGet({request,env}){
   const rpcClient=createSolanaRpc(env);const RPCS=[];const rpc=async(_endpoints,method,params)=>({result:await rpcClient.call(method,params),provider:0});let activeProvider="Not yet selected";
