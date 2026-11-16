@@ -80,6 +80,9 @@ export function aggregatePerformancePages(pages = []) {
   const winningLots = tokenResults.reduce((n, x) => n + x.profitableClosedLots, 0);
   const losingLots = tokenResults.reduce((n, x) => n + x.losingClosedLots, 0);
   const holdingDays = tokenResults.reduce((n, x) => n + (x.averageHoldingDays || 0) * x.closedLots, 0);
+  const grossProfit = tokenResults.reduce((n, x) => n + (x.grossProfitUsd || 0), 0);
+  const grossLoss = tokenResults.reduce((n, x) => n + (x.grossLossUsd || 0), 0);
+  const realizedPnl = tokenResults.reduce((n, x) => n + (x.estimatedRealizedPnlUsd || 0), 0);
   const allPagesHaveMore = (pages || []).some(page => page?.historyPagination?.hasMore);
   return {
     status: "PARTIAL",
@@ -93,6 +96,11 @@ export function aggregatePerformancePages(pages = []) {
       tokenLevelPositiveShare: closed.length ? closed.filter(x => x.estimatedRealizedPnlUsd > 0).length / closed.length : null,
       closedFifoLots: closedLots, winningFifoLots: winningLots, losingFifoLots: losingLots,
       fifoLotWinRate: closedLots ? winningLots / closedLots : null,
+      estimatedRealizedPnlUsd: closedLots ? round(realizedPnl) : null,
+      grossProfitUsd: round(grossProfit), grossLossUsd: round(grossLoss),
+      profitFactor: grossLoss > 0 ? round(grossProfit / grossLoss) : (grossProfit > 0 ? "INFINITE" : null),
+      averageWinUsd: winningLots ? round(grossProfit / winningLots) : null,
+      averageLossUsd: losingLots ? round(grossLoss / losingLots) : null,
       averageHoldingDays: closedLots ? holdingDays / closedLots : null,
       reputationStatus: closedLots >= 10 ? "PARTIAL" : "INSUFFICIENT_DATA"
     },
