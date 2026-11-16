@@ -9,6 +9,7 @@ import { onRequestGet as performance } from "../functions/api/performance.js";
 import { onRequestGet as developer } from "../functions/api/developer.js";
 import { onRequestGet as tokenSecurity } from "../functions/api/token-security.js";
 import { onRequestGet as tokenInfo } from "../functions/api/token-info.js";
+import { onRequestGet as intelligence } from "../functions/api/intelligence.js";
 
 const routes = {
   "/api/health": health,
@@ -21,7 +22,8 @@ const routes = {
   "/api/performance": performance,
   "/api/developer": developer,
   "/api/token-security": tokenSecurity,
-  "/api/token-info": tokenInfo
+  "/api/token-info": tokenInfo,
+  "/api/intelligence": intelligence
 };
 
 export default {
