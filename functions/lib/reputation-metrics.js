@@ -121,3 +121,23 @@ export function aggregatePerformancePages(pages = []) {
     history: { pagesLoaded: (pages || []).length, hasMore: allPagesHaveMore, scope: "CUMULATIVE_PAGES_LOADED_ONLY" }
   };
 }
+
+export function rankPerformanceProfiles(profiles = [], { minClosedTrades = 10, minPriceCoverage = 0.8 } = {}) {
+  const rows = (Array.isArray(profiles) ? profiles : []).map(profile => {
+    const summary = profile?.summary || {};
+    const closedTrades = Number(summary.closedTrades || 0);
+    const priceCoverage = Number(profile?.coverage);
+    const pnl = Number(summary.estimatedRealizedPnlUsd);
+    const eligible = Number.isFinite(pnl) && closedTrades >= minClosedTrades &&
+      Number.isFinite(priceCoverage) && priceCoverage >= minPriceCoverage;
+    return { ...profile, eligible, closedTrades, priceCoverage: Number.isFinite(priceCoverage) ? priceCoverage : null };
+  });
+  const ranked = rows.filter(x => x.eligible).sort((a, b) =>
+    Number(b.summary.estimatedRealizedPnlUsd) - Number(a.summary.estimatedRealizedPnlUsd) ||
+    Number(b.summary.fifoLotWinRate || 0) - Number(a.summary.fifoLotWinRate || 0) ||
+    String(a.address || "").localeCompare(String(b.address || ""))
+  );
+  ranked.forEach((profile, index) => { profile.rank = index + 1; });
+  const unqualified = rows.filter(x => !x.eligible).map(profile => ({ ...profile, rank: null }));
+  return { ranked, unqualified, criteria: { minClosedTrades, minPriceCoverage } };
+}
