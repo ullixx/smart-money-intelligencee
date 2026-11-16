@@ -64,3 +64,33 @@ test("checks five wallets within the RPC request budget using one transaction ba
     globalThis.fetch = originalFetch;
   }
 });
+
+test("counts every transaction once when the RPC batch itself fails", async () => {
+  const originalFetch = globalThis.fetch;
+  const wallets = ["1", "2"].map(char => char.repeat(32));
+  globalThis.fetch = async (_url, options) => {
+    const body = JSON.parse(options.body);
+    if (Array.isArray(body)) throw new Error("batch transport failed");
+    const wallet = body.params[0];
+    return new Response(JSON.stringify({
+      jsonrpc: "2.0",
+      id: body.id,
+      result: Array.from({ length: 8 }, (_, index) => ({
+        signature: "sig-" + wallet + "-" + index,
+        blockTime: 100000 + index
+      }))
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const request = new Request("https://app.test/api/network?wallets=" + wallets.join(","));
+    const response = await onRequestGet({ request, env: { SOLANA_RPC_URL: "https://rpc.test" } });
+    const data = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(data.transactionsRequested, 16);
+    assert.equal(data.transactionsAnalysed, 0);
+    assert.equal(data.skippedTransactions, 16);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
