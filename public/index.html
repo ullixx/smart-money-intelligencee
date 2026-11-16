@@ -299,6 +299,16 @@ async function inspectRanking(){
 }
 document.getElementById("rankingButton").addEventListener("click",inspectRanking);
 
+function rankPerformanceProfiles(profiles){
+ const rows=profiles.map(profile=>{
+  const summary=profile.summary||{},closedTrades=Number(summary.closedTrades||0),coverage=Number(profile.coverage),pnl=Number(summary.estimatedRealizedPnlUsd);
+  const eligible=Number.isFinite(pnl)&&closedTrades>=10&&Number.isFinite(coverage)&&coverage>=0.8;
+  return {...profile,eligible,closedTrades,priceCoverage:Number.isFinite(coverage)?coverage:null};
+ });
+ const ranked=rows.filter(x=>x.eligible).sort((a,b)=>Number(b.summary.estimatedRealizedPnlUsd)-Number(a.summary.estimatedRealizedPnlUsd)||Number(b.summary.fifoLotWinRate||0)-Number(a.summary.fifoLotWinRate||0)||String(a.address||"").localeCompare(String(b.address||"")));
+ ranked.forEach((profile,index)=>{profile.rank=index+1;});
+ return {ranked,unqualified:rows.filter(x=>!x.eligible).map(profile=>({...profile,rank:null}))};
+}
 async function inspectReputation(){
  const wallets=getWallets().slice(0,5),out=document.getElementById("reputationResult");
  if(!wallets.length){out.textContent="Bitte zuerst Wallets speichern.";return;}
