@@ -128,3 +128,13 @@ test("recognizes an associated token account address alias when owner metadata i
  assert.equal(r.hasWalletTokenTransferIn,true);
  assert.equal(r.walletTokenAccountsChecked,1);
 });
+
+
+test("returns ordered DEX instruction trace including inner route instructions",()=>{
+ const tx={transaction:{message:{accountKeys:[WALLET,JUP],instructions:[{programId:JUP,accounts:[WALLET],data:"outer"}]}},meta:{innerInstructions:[{index:0,instructions:[{programId:JUP,accounts:[ATA_A,POOL],data:"inner",stackHeight:2}]}]}};
+ const result=decodeSwapEvidence(tx,{wallet:WALLET});
+ assert.equal(result.dexInstructionTrace.length,2);
+ assert.equal(result.dexInstructionTrace[0].data,"outer");
+ assert.equal(result.dexInstructionTrace[1].data,"inner");
+ assert.equal(result.dexInstructionTrace[1].stackHeight,2);
+});
