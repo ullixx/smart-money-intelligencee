@@ -185,19 +185,48 @@ async function inspectWallet(address){
   }));
  }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
 }
-let performancePage=0,performanceNextCursor=null;
+let performancePage=0,performanceNextCursor=null,performancePages=[];
+function mergePerformancePages(pages){
+ const unique=new Map();
+ for(const page of pages)for(const token of page.tokenResults||[])for(const e of token.events||[]){
+  const key=[e.signature,token.mint,e.side].join("|");
+  if(!unique.has(key))unique.set(key,{...e,mint:token.mint});
+ }
+ const byMint=new Map();
+ for(const e of unique.values()){if(!byMint.has(e.mint))byMint.set(e.mint,[]);byMint.get(e.mint).push(e);}
+ const tokenResults=[];
+ for(const [mint,events] of byMint){
+  events.sort((a,b)=>a.time-b.time);
+  const lots=[];let pnl=0,matched=0,closed=0,wins=0,losses=0,hold=0,unmatched=0;
+  for(const e of events){
+   if(e.side==="BUY"){lots.push({amount:e.amount,price:Number.isFinite(e.priceUsd)?e.priceUsd:null,time:e.time});if(e.priceUsd==null)unmatched++;continue;}
+   let remaining=e.amount;
+   while(remaining>1e-12&&lots.length){
+    const lot=lots[0],qty=Math.min(remaining,lot.amount);
+    if(lot.price==null||!Number.isFinite(e.priceUsd))unmatched++;
+    else{const v=(e.priceUsd-lot.price)*qty;pnl+=v;matched+=qty;closed++;hold+=Math.max(0,e.time-lot.time);if(v>0)wins++;else if(v<0)losses++;}
+    remaining-=qty;lot.amount-=qty;if(lot.amount<=1e-12)lots.shift();
+   }
+   if(remaining>1e-12)unmatched++;
+  }
+  tokenResults.push({mint,buys:events.filter(x=>x.side==="BUY").length,sells:events.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?pnl:null,closedLots:closed,profitableClosedLots:wins,losingClosedLots:losses,winRateClosedLots:closed?wins/closed:null,averageHoldingDays:closed?hold/closed/86400:null,openLots:lots.length,unmatchedEvents:unmatched,priceSource:events.every(x=>Number.isFinite(x.priceUsd))?"HISTORICAL":"PARTIAL",poolUrl:null,events});
+ }
+ const closedLots=tokenResults.reduce((n,x)=>n+x.closedLots,0),wins=tokenResults.reduce((n,x)=>n+x.profitableClosedLots,0),hold=tokenResults.reduce((n,x)=>n+(x.averageHoldingDays||0)*x.closedLots,0);
+ const closed=tokenResults.filter(x=>x.estimatedRealizedPnlUsd!==null);
+ return {events:unique.size,tokenResults,summary:{tokens:tokenResults.length,pricedEvents:[...unique.values()].filter(x=>Number.isFinite(x.priceUsd)).length,unpricedEvents:[...unique.values()].filter(x=>!Number.isFinite(x.priceUsd)).length,closedTokens:closed.length,positiveTokenPnlTokens:closed.filter(x=>x.estimatedRealizedPnlUsd>0).length,tokenLevelPositiveShare:closed.length?closed.filter(x=>x.estimatedRealizedPnlUsd>0).length/closed.length:null,closedFifoLots:closedLots,winningFifoLots:wins,losingFifoLots:tokenResults.reduce((n,x)=>n+x.losingClosedLots,0),fifoLotWinRate:closedLots?wins/closedLots:null,averageHoldingDays:closedLots?hold/closedLots:null,reputationStatus:closedLots>=10?"PARTIAL":"INSUFFICIENT_DATA"}};
+}
 async function inspectPerformance(before=null){
  const list=getWallets(),out=document.getElementById("performanceResult");
- if(!before){performancePage=0;performanceNextCursor=null;}
+ if(!before){performancePage=0;performanceNextCursor=null;performancePages=[];}
  if(!list.length){out.textContent="Bitte zuerst eine Wallet speichern.";return;}
  out.textContent="Lade Transaktionen und historische Stundenkurse …";
  try{
   const query="/api/performance?address="+encodeURIComponent(list[0])+(before?"&before="+encodeURIComponent(before):"");
   const r=await fetch(query,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Performance-Abfrage fehlgeschlagen");
-  const s=d.summary||{},pct=s.tokenLevelPositiveShare==null?"—":(s.tokenLevelPositiveShare*100).toFixed(1)+"%";
+  performancePages.push(d);const merged=mergePerformancePages(performancePages);const s=merged.summary||{},pct=s.tokenLevelPositiveShare==null?"—":(s.tokenLevelPositiveShare*100).toFixed(1)+"%";
   performancePage++;performanceNextCursor=d.historyPagination?.nextBefore||null;
-  out.innerHTML='<p><b style="color:var(--amber)">'+d.status+'</b> · Historienseite '+performancePage+' · '+esc(d.source)+' · '+d.events+' Bewegungen · Abdeckung '+(d.coverage??'—')+'% · übersprungen '+(d.skippedTransactions??0)+' · nicht klassifiziert '+(d.unclassifiedTransactions??0)+'</p><div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0"><div class="metric"><small>Token geprüft</small><strong>'+s.tokens+'</strong></div><div class="metric"><small>Historisch bepreist</small><strong>'+s.pricedEvents+'</strong></div><div class="metric"><small>Unbepreist</small><strong>'+s.unpricedEvents+'</strong></div><div class="metric"><small>Positive Token-PnL</small><strong>'+pct+'</strong></div></div>'+
-  (d.tokenResults?.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>BUYs</th><th>SELLs</th><th>Geschlossene Menge</th><th>Geschätzter FIFO-PnL</th><th>Offene FIFO-Lots</th><th>Nicht zugeordnet</th><th>Kursquelle</th></tr></thead><tbody>'+d.tokenResults.map(t=>'<tr><td>'+esc(t.mint.slice(0,7)+"…"+t.mint.slice(-6))+(t.poolUrl?'<br><a target="_blank" rel="noopener" href="'+esc(t.poolUrl)+'">Pool ↗</a>':"")+'</td><td>'+t.buys+'</td><td>'+t.sells+'</td><td>'+fmt(t.matchedTokenAmount)+'</td><td>'+(t.estimatedRealizedPnlUsd==null?"—":(t.estimatedRealizedPnlUsd>=0?"+":"")+"$"+fmt(t.estimatedRealizedPnlUsd))+'</td><td>'+t.openLots+'</td><td>'+t.unmatchedEvents+'</td><td>'+esc(t.priceSource)+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Token-Bewegungen gefunden.')+'<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>'+(performanceNextCursor?'<button type="button" id="performanceNextPageButton" style="margin-top:10px;background:#263a56;color:var(--text)">Ältere Transaktionen laden</button>':'<p class="muted" style="font-size:11px">Keine weitere Seite vom RPC gemeldet.</p>');
+  out.innerHTML='<p><b style="color:var(--amber)">'+d.status+'</b> · Historienseite '+performancePage+' · '+esc(d.source)+' · '+merged.events+' Bewegungen insgesamt · Abdeckung '+(d.coverage??'—')+'% · übersprungen '+(d.skippedTransactions??0)+' · nicht klassifiziert '+(d.unclassifiedTransactions??0)+'</p><div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0"><div class="metric"><small>Token geprüft</small><strong>'+s.tokens+'</strong></div><div class="metric"><small>Historisch bepreist</small><strong>'+s.pricedEvents+'</strong></div><div class="metric"><small>Unbepreist</small><strong>'+s.unpricedEvents+'</strong></div><div class="metric"><small>Positive Token-PnL</small><strong>'+pct+'</strong></div></div>'+
+  (merged.tokenResults?.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>BUYs</th><th>SELLs</th><th>Geschlossene Menge</th><th>Geschätzter FIFO-PnL</th><th>Offene FIFO-Lots</th><th>Nicht zugeordnet</th><th>Kursquelle</th></tr></thead><tbody>'+merged.tokenResults.map(t=>'<tr><td>'+esc(t.mint.slice(0,7)+"…"+t.mint.slice(-6))+(t.poolUrl?'<br><a target="_blank" rel="noopener" href="'+esc(t.poolUrl)+'">Pool ↗</a>':"")+'</td><td>'+t.buys+'</td><td>'+t.sells+'</td><td>'+fmt(t.matchedTokenAmount)+'</td><td>'+(t.estimatedRealizedPnlUsd==null?"—":(t.estimatedRealizedPnlUsd>=0?"+":"")+"$"+fmt(t.estimatedRealizedPnlUsd))+'</td><td>'+t.openLots+'</td><td>'+t.unmatchedEvents+'</td><td>'+esc(t.priceSource)+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Token-Bewegungen gefunden.')+'<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>'+(performanceNextCursor?'<button type="button" id="performanceNextPageButton" style="margin-top:10px;background:#263a56;color:var(--text)">Ältere Transaktionen laden</button>':'<p class="muted" style="font-size:11px">Keine weitere Seite vom RPC gemeldet.</p>');
   const nextButton=document.getElementById("performanceNextPageButton");if(nextButton)nextButton.addEventListener("click",()=>inspectPerformance(performanceNextCursor));
  }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
 }
