@@ -1,11 +1,10 @@
 import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 import { isValidSolanaAddress } from "../lib/solana-address.js";
-import { isValidSolanaAddress } from "../lib/solana-address.js";
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 export async function onRequestGet({request,env}) {
  const rpc=createSolanaRpc(env);let activeProvider="Not yet selected";
  const u=new URL(request.url),wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
- if(wallets.length<2||wallets.some(a=>!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)))return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
+ if(wallets.length<2||wallets.some(a=>!isValidSolanaAddress(a)))return Response.json({status:"UNAVAILABLE",error:"Mindestens zwei gültige Solana-Wallet-Adressen erforderlich.",clusters:[]},{status:400});
  try{
   const events=[],funding=[],walletStats={},refs=[];let transactionsRequested=0,transactionsAnalysed=0,skippedTransactions=0;
   // Signaturen je Wallet holen, Transaktionen anschließend gemeinsam abrufen.

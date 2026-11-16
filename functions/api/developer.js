@@ -1,6 +1,5 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 import { isValidSolanaAddress } from "../lib/solana-address.js";
-import { isValidSolanaAddress } from "../lib/solana-address.js";
 export async function onRequestGet({request,env}){
  const rpc=createSolanaRpc(env);
  const signatureRequestLimit=1000;

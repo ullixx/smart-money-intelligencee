@@ -1,5 +1,4 @@
 import { isValidSolanaAddress } from "../lib/solana-address.js";
-import { isValidSolanaAddress } from "../lib/solana-address.js";
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 const valid=isValidSolanaAddress;
 export async function onRequestGet({request,env}){
