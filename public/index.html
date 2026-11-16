@@ -85,7 +85,7 @@ async function inspectDeveloper(address){
   const r=await fetch("/api/developer?address="+encodeURIComponent(address),{cache:"no-store"}),d=await r.json();
   if(!r.ok)throw new Error(d.detail||d.error||"Developer-Prüfung fehlgeschlagen");
   const tx=d.firstVisibleTransaction;
-  const row=(label,value)=>'<div style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="muted">'+label+'</span><br><b style="overflow-wrap:anywhere">'+(value||"Nicht verfügbar")+'</b></div>';
+  const row=(label,value)=>'<div style="padding:8px 0;border-bottom:1px solid var(--line)"><span class="muted">'+label+'</span><br><b style="overflow-wrap:anywhere">'+esc(value??"Nicht verfügbar")+'</b></div>';
   out.innerHTML='<div class="panel" style="padding:13px"><div class="sectionhead"><b>Mint Trace</b><span class="tag">'+esc(d.status)+'</span></div>'+
    row("Fee-Payer-Kandidat (erste verfügbare Transaktion)",tx?.feePayerCandidate)+
    row("Initialize-Mint Authority",tx?.initializeMintAuthority)+
@@ -93,6 +93,7 @@ async function inspectDeveloper(address){
    row("Freeze Authority aktuell",d.freezeAuthority)+
    row("Zeitpunkt der ältesten verfügbaren Transaktion",tx?.blockTime?new Date(tx.blockTime*1000).toLocaleString("de-DE"):"Nicht verfügbar")+
    row("Signaturen geprüft",d.signaturesChecked??"—")+
+   row("Historien-Abdeckung",d.historyWindowStatus==="REQUEST_LIMIT_REACHED"?"Anfragelimit erreicht – ältere Signaturen nicht geprüft":d.historyWindowStatus==="RPC_RETURNED_FEWER_THAN_REQUESTED_LIMIT"?"RPC lieferte weniger Signaturen als angefragt – Vollständigkeit nicht bestätigt":d.historyWindowStatus==="EMPTY_RPC_RESPONSE"?"RPC lieferte keine Signaturen – Historie unbekannt":d.historyWindowStatus||"Nicht verfügbar")+
    (tx?.explorerUrl?'<p><a target="_blank" rel="noopener" href="'+esc(tx.explorerUrl)+'">Erste sichtbare Transaktion in Solscan öffnen ↗</a></p>':"")+
    '<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p></div>';
  }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
@@ -358,10 +359,12 @@ async function inspectFomo(){
    const name=esc(t.name||t.symbol||t.address.slice(0,8));
    const pressure=t.buyPressure==null?"—":(t.buyPressure*100).toFixed(1)+"%";
    const ratio=t.volumeLiquidity==null?"—":t.volumeLiquidity.toFixed(2)+"x";
-   rows+="<tr><td>"+name+"</td><td>"+(t.score??"—")+"/100</td><td>"+pressure+"</td><td>"+ratio+"</td><td>$"+fmt(t.liquidityUsd)+"</td><td>"+t.buys24h+" / "+t.sells24h+"</td><td><a target='_blank' rel='noopener' href='"+esc(t.url||("https://solscan.io/token/"+t.address))+"'>öffnen</a></td></tr>";
+   const dataStatus=t.scoreStatus==="LIVE"?"VOLLSTÄNDIG":t.scoreStatus==="PARTIAL"?"TEILWEISE":"NICHT VERFÜGBAR";
+   const coverage=t.scoreCoverage?` (${t.scoreCoverage.available}/${t.scoreCoverage.total})`:"";
+   rows+="<tr><td>"+name+"</td><td>"+(t.score??"—")+"/100</td><td>"+pressure+"</td><td>"+ratio+"</td><td>$"+fmt(t.liquidityUsd)+"</td><td>"+(t.buys24h??"—")+" / "+(t.sells24h??"—")+"</td><td>"+dataStatus+coverage+"</td><td><a target='_blank' rel='noopener' href='"+esc(t.url||("https://solscan.io/token/"+t.address))+"'>öffnen</a></td></tr>";
   }
   out.innerHTML="<p><b>"+esc(d.status)+"</b> · DEX Screener · Social: <b style='color:var(--red)'>UNAVAILABLE</b></p>"+
-   (rows?"<div class='tablewrap'><table><thead><tr><th>Token</th><th>Market Pulse</th><th>Buy-Anteil</th><th>Volumen/Liquidität</th><th>Liquidität</th><th>BUY/SELL</th><th>Explorer</th></tr></thead><tbody>"+rows+"</tbody></table></div>":"Keine Marktpaare verfügbar.")+
+   (rows?"<div class='tablewrap'><table><thead><tr><th>Token</th><th>Market Pulse</th><th>Buy-Anteil</th><th>Volumen/Liquidität</th><th>Liquidität</th><th>BUY/SELL</th><th>Score-Datenlage</th><th>Explorer</th></tr></thead><tbody>"+rows+"</tbody></table></div>":"Keine Marktpaare verfügbar.")+
    "<p class='muted' style='font-size:11px'>"+esc(d.method||"")+"<br>"+esc(d.note||"")+"<br>"+esc(d.social?.note||"")+"</p>";
  }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
 }
