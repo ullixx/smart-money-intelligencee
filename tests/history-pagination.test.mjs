@@ -4,12 +4,12 @@ import { parseHistoryWindow, buildHistoryPagination } from "../functions/lib/his
 
 test("uses a safe default history page size", () => {
   assert.deepEqual(parseHistoryWindow("https://app.test/api/performance?address=abc"), {
-    pageSize: 25, rpcLimit: 26, before: null
+    pageSize: 50, rpcLimit: 51, before: null
   });
 });
 
-test("caps history page size to protect the Worker RPC budget", () => {
-  assert.equal(parseHistoryWindow("https://app.test/?limit=500").pageSize, 30);
+test("caps history page size to a bounded batch size", () => {
+  assert.equal(parseHistoryWindow("https://app.test/?limit=500").pageSize, 50);
   assert.equal(parseHistoryWindow("https://app.test/?limit=-5").pageSize, 1);
 });
 
