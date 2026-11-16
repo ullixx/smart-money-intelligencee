@@ -53,3 +53,35 @@ test("still throws for a non-retryable error in a single RPC call", async () => 
     globalThis.fetch = originalFetch;
   }
 });
+
+test("fails over when the primary RPC rejects JSON-RPC batch requests", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedUrls = [];
+  globalThis.fetch = async (url, options) => {
+    requestedUrls.push(String(url));
+    const body = JSON.parse(options.body);
+    if (String(url) === "https://primary.test") {
+      return new Response(JSON.stringify({
+        jsonrpc: "2.0",
+        error: { code: -32600, message: "Batch requests are not supported" }
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    return new Response(JSON.stringify(body.map(item => ({
+      jsonrpc: "2.0", id: item.id, result: { slot: 456 }
+    }))), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  try {
+    const rpc = createSolanaRpc({
+      SOLANA_RPC_URL: "https://primary.test",
+      SOLANA_RPC_FALLBACK_URL: "https://fallback.test"
+    });
+    const result = await rpc.callBatch([{ method: "getSlot", params: [] }]);
+    assert.deepEqual(result, [{ slot: 456 }]);
+    assert.deepEqual(requestedUrls, ["https://primary.test", "https://fallback.test"]);
+    assert.equal(rpc.providerLabel(), "Fallback RPC");
+    assert.equal(rpc.budget().used, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
