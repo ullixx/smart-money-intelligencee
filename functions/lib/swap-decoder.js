@@ -49,9 +49,9 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
   classification="SWAP_CANDIDATE";confidence="LOW";basis="Gegenläufige Token-Salden und Wallet-zugeordnetes parsed Transfer-Indiz ohne erkanntes DEX-Programm";
  }else if(hasTokenIn&&hasTokenOut){
   classification="TOKEN_MOVEMENT";confidence="LOW";basis="Gegenläufige Token-Salden ohne parsed Wallet-Transfer-Nachweis; nicht als Swap gewertet";
- }else if(hasTokenIn&&solOut){
+ }else if(hasWalletTokenTransferIn&&solOut){
   classification="BUY_INFERRED";confidence="LOW";basis="Wallet erhält Token und sendet SOL laut System-Transfer; DEX-Gegenleistung nicht bestätigt";
- }else if(hasTokenOut&&solIn){
+ }else if(hasWalletTokenTransferOut&&solIn){
   classification="SELL_INFERRED";confidence="LOW";basis="Wallet sendet Token und erhält SOL laut System-Transfer; DEX-Gegenleistung nicht bestätigt";
  }else if(hasWalletTokenTransferIn||hasTokenIn){
   classification=hasWalletTokenTransferIn?"TOKEN_TRANSFER_IN":"AIRDROP_OR_TOKEN_RECEIPT";confidence="LOW";basis=hasWalletTokenTransferIn?"Parsed Token-Transfer an ein Token-Konto der Wallet":"Einseitiger Token-Zugang ohne nachgewiesene Gegenleistung";
@@ -64,6 +64,6 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  }else if(walletTokenTransfers.length){
   classification="TOKEN_TRANSFER";confidence="MEDIUM";basis="Parsed SPL-Token-Transfer mit Wallet-eigenem Token-Konto";
  }
- const direction=hasTokenOut&&hasTokenIn?"TOKEN_TO_TOKEN":hasTokenIn&&solOut?"SOL_TO_TOKEN":hasTokenOut&&solIn?"TOKEN_TO_SOL":"UNRESOLVED";
+ const direction=hasWalletTokenTransferOut&&hasWalletTokenTransferIn?"TOKEN_TO_TOKEN":hasWalletTokenTransferIn&&solOut?"SOL_TO_TOKEN":hasWalletTokenTransferOut&&solIn?"TOKEN_TO_SOL":"UNRESOLVED";
  return {classification,confidence,basis,direction,dexPrograms,programIds,parsedInstructionTypes:[...new Set(parsedTypes)],walletTokenAccountsChecked:walletTokenAccounts.size,walletTokenTransfers,systemTransfers,hasWalletTokenTransferIn,hasWalletTokenTransferOut,hasWalletSystemTransferIn,hasWalletSystemTransferOut,hasKnownDexProgram:dexPrograms.length>0};
 }
