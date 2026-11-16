@@ -44,3 +44,18 @@ test("calculates a loss and labels incomplete price coverage", () => {
   assert.equal(result.tokenResults[0].losingClosedLots, 1);
   assert.equal(result.tokenResults[0].status, "HISTORICAL");
 });
+
+test("calculates profit factor and average win and loss from closed FIFO fragments", () => {
+  const result = aggregatePerformancePages([page([
+    event("buy-a", "BUY", 100, 10),
+    event("sell-a", "SELL", 200, 15),
+    event("buy-b", "BUY", 300, 20),
+    event("sell-b", "SELL", 400, 10)
+  ])]);
+  const token = result.tokenResults[0];
+  assert.equal(token.grossProfitUsd, 5);
+  assert.equal(token.grossLossUsd, 10);
+  assert.equal(token.profitFactor, 0.5);
+  assert.equal(token.averageWinUsd, 5);
+  assert.equal(token.averageLossUsd, 10);
+});
