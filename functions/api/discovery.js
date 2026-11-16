@@ -44,8 +44,10 @@ export async function onRequestGet() {
       const volume = pair?.volume?.h24 == null ? null : Number(pair.volume.h24);
       const rawBuys = pair?.txns?.h24?.buys;
       const rawSells = pair?.txns?.h24?.sells;
-      const buys = rawBuys == null ? null : Number(isBase ? rawBuys : rawSells);
-      const sells = rawSells == null ? null : Number(isBase ? rawSells : rawBuys);
+      const targetBuysRaw = isBase ? rawBuys : rawSells;
+      const targetSellsRaw = isBase ? rawSells : rawBuys;
+      const buys = targetBuysRaw == null ? null : Number(targetBuysRaw);
+      const sells = targetSellsRaw == null ? null : Number(targetSellsRaw);
       const flags = [];
       if (liquidity !== null && Number.isFinite(liquidity) && liquidity < 10000) flags.push("Niedrige Liquidität (< $10k)");
       if (buys !== null && sells !== null && Number.isFinite(buys) && Number.isFinite(sells) && buys + sells >= 10 && sells > buys * 1.5) flags.push("Verkaufsdruck");
