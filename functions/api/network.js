@@ -19,7 +19,7 @@ export async function onRequestGet({request,env}) {
    try{
     txResults=await rpc.callBatch(refs.map(ref=>({method:"getTransaction",params:[ref.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]})));
    }catch(_){
-    skippedTransactions=refs.length;
+    txResults=refs.map(()=>({__rpcError:"RPC-Batch-Abfrage fehlgeschlagen"}));
    }
   }
   for(let index=0;index<refs.length;index++){
