@@ -1,6 +1,7 @@
+import { isValidSolanaAddress } from "../lib/solana-address.js";
 export async function onRequestGet({request}){
  const url=new URL(request.url),mint=(url.searchParams.get("mint")||"").trim();
- if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint))return Response.json({status:"UNAVAILABLE",error:"Ungültige Mint-Adresse"},{status:400});
+ if(!isValidSolanaAddress(mint))return Response.json({status:"UNAVAILABLE",error:"Ungültige Mint-Adresse"},{status:400});
  const clean=v=>typeof v==="string"&&v.trim()?v.trim():null;
  // Pump.fun kennt neu gestartete Coins häufig bereits vor dem ersten DEX-Pair.
  try{

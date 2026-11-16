@@ -1,6 +1,7 @@
+import { isValidSolanaAddress } from "../lib/solana-address.js";
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 import { decodeSwapEvidence } from "../lib/swap-decoder.js";
-const valid=a=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
+const valid=isValidSolanaAddress;
 export async function onRequestGet({request,env}){
  const rpc=createSolanaRpc(env),wallets=[...new Set((new URL(request.url).searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,10);
  if(!wallets.length||wallets.some(x=>!valid(x)))return Response.json({status:"UNAVAILABLE",error:"Mindestens eine gültige Solana-Wallet-Adresse erforderlich."},{status:400});

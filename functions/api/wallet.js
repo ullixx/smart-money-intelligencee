@@ -1,9 +1,10 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
+import { isValidSolanaAddress } from "../lib/solana-address.js";
 import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 import { countWalletTradeDirections } from "../lib/wallet-trade-counts.js";
 export async function onRequestGet({ request, env }) {
   const url=new URL(request.url),address=(url.searchParams.get("address")||"").trim();
-  if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
+  if(!isValidSolanaAddress(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse",transactions:[]},{status:400});
   const rpc=createSolanaRpc(env);
   const call=rpc.call;
   let rpcProvider="Not yet selected";

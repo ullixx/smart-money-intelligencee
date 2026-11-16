@@ -1,4 +1,5 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
+import { isValidSolanaAddress } from "../lib/solana-address.js";
 import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 import { parseHistoryWindow, buildHistoryPagination } from "../lib/history-pagination.js";
 import { selectPriceResolution, nearestCandle, deriveUsdcExecutionPrice, SOLANA_USDC_MINT } from "../lib/price-resolution.js";
@@ -10,7 +11,7 @@ const json=async(url,opts={})=>{const r=await fetch(url,{...opts,signal:opts.sig
 export async function onRequestGet({request,env}){
   const rpcClient=createSolanaRpc(env);const RPCS=[];const rpc=async(_endpoints,method,params)=>({result:await rpcClient.call(method,params),provider:0});let activeProvider="Not yet selected";
  const requestUrl=new URL(request.url);const address=requestUrl.searchParams.get("address")?.trim()||"";const historyWindow=parseHistoryWindow(requestUrl);const requestedPages=Math.max(1,Math.min(3,Number.parseInt(requestUrl.searchParams.get("pages")||"3",10)||3));
- if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse"},{status:400});
+ if(!isValidSolanaAddress(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Solana-Wallet-Adresse"},{status:400});
  try{
   const events=[],mints=new Set(),historyPageResults=[];let skippedTransactions=0,unclassifiedTransactions=0,decodedTransactions=0,signatureCursor=historyWindow.before;
   const skipReasons={rpcError:0,transactionNotFound:0,missingMetadata:0,failedTransaction:0,missingBlockTime:0,decodeError:0};

@@ -1,4 +1,5 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
+import { isValidSolanaAddress } from "../lib/solana-address.js";
 import { assessPoolLiquidityRisk } from "../lib/liquidity-risk.js";
 import { decodeRaydiumV4LpMint } from "../lib/raydium-lp.js";
 import { assessPoolAgeRisk } from "../lib/pool-age-risk.js";
@@ -6,7 +7,7 @@ import { decodeLockProgramAccount, RAYDIUM_LOCK_PROGRAM, RAYDIUM_CPMM_PROGRAM, R
 export async function onRequestGet({request,env}){
  const rpc=createSolanaRpc(env);
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
- if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Token-Mint-Adresse"},{status:400});
+ if(!isValidSolanaAddress(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Token-Mint-Adresse"},{status:400});
  try{
   const [account,supply,largest,pairsResponse]=await Promise.all([
    rpc.call("getAccountInfo",[address,{encoding:"jsonParsed",commitment:"confirmed"}]),
