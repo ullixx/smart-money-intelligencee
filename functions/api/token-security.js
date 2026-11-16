@@ -2,6 +2,7 @@ import { createSolanaRpc } from "../lib/solana-rpc.js";
 import { assessPoolLiquidityRisk } from "../lib/liquidity-risk.js";
 import { decodeRaydiumV4LpMint } from "../lib/raydium-lp.js";
 import { assessPoolAgeRisk } from "../lib/pool-age-risk.js";
+import { decodeLockProgramAccount, RAYDIUM_LOCK_PROGRAM, RAYDIUM_CPMM_PROGRAM, RAYDIUM_CLMM_PROGRAM, CP_DISCRIMINATOR, CLMM_DISCRIMINATOR, encodeBase58 } from "../lib/raydium-lock.js";
 export async function onRequestGet({request,env}){
  const rpc=createSolanaRpc(env);
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
@@ -35,9 +36,23 @@ export async function onRequestGet({request,env}){
    try{
     const poolAccount=await rpc.call("getAccountInfo",[pool.pairAddress,{encoding:"base64",commitment:"confirmed"}]);
     const encoded=poolAccount?.value?.data?.[0];
-    if(typeof encoded==="string"){
+    const poolProgram=poolAccount?.value?.owner;
+    if(poolProgram===RAYDIUM_CPMM_PROGRAM||poolProgram===RAYDIUM_CLMM_PROGRAM){
+     const poolType=poolProgram===RAYDIUM_CPMM_PROGRAM?"CPMM":"CLMM";
+     const discriminator=poolType==="CPMM"?CP_DISCRIMINATOR:CLMM_DISCRIMINATOR;
+     const poolOffset=poolType==="CPMM"?64:41;
+     const lockAccounts=await rpc.call("getProgramAccounts",[RAYDIUM_LOCK_PROGRAM,{encoding:"base64",commitment:"confirmed",filters:[{memcmp:{offset:0,bytes:encodeBase58(discriminator)}},{memcmp:{offset:poolOffset,bytes:pool.pairAddress}}]}]);
+     const verifiedLocks=(lockAccounts||[]).map(item=>{
+      const raw=item.account?.data?.[0];
+      if(typeof raw!=="string")return null;
+      const binary=atob(raw),bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
+      const decoded=decodeLockProgramAccount({programOwner:item.account?.owner,data:bytes,poolId:pool.pairAddress,poolType});
+      return decoded.status==="VERIFIED_LOCK_STATE"?{account:item.pubkey,...decoded}:null;
+     }).filter(Boolean);
+     lpControl={status:"PARTIAL",poolProgram,lockProgram:RAYDIUM_LOCK_PROGRAM,poolType,verifiedLocks,verifiedLockCount:verifiedLocks.length,lockVerification:"VERIFIED_ON_CHAIN",lockModel:"BURN_AND_EARN_PERMANENT_LOCK",unlockAt:null,reason:"Raydium-Lock-Program-Accounts wurden anhand des Programms, des Account-Discriminators und der Pool-Adresse geprüft. Burn & Earn ist ein permanentes Lock-Modell; ein Unlock-Zeitpunkt wird nicht behauptet.",checkedAt:new Date().toISOString()};
+    }else if(typeof encoded==="string"){
      const binary=atob(encoded),bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
-     const decoded=decodeRaydiumV4LpMint({programOwner:poolAccount.value.owner,data:bytes});
+     const decoded=decodeRaydiumV4LpMint({programOwner:poolProgram,data:bytes});
      if(decoded.status==="DECODED"){
       const [lpSupply,lpLargest]=await Promise.all([
        rpc.call("getTokenSupply",[decoded.lpMint,{commitment:"confirmed"}]),
