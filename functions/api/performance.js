@@ -24,7 +24,7 @@ export async function onRequestGet({request,env}){
    try{
     txBatch=await rpcClient.callBatch(pageSignatures.map(sig=>({method:"getTransaction",params:[sig.signature,{encoding:"jsonParsed",maxSupportedTransactionVersion:2}]})));
     activeProvider=rpcClient.providerLabel();
-   }catch(_){skippedTransactions+=pageSignatures.length;txBatch=[];}
+   }catch(_){txBatch=[];}
    for(let txIndex=0;txIndex<pageSignatures.length;txIndex++){
     const sig=pageSignatures[txIndex];
     try{
