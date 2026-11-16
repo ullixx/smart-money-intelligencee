@@ -138,3 +138,15 @@ test("returns ordered DEX instruction trace including inner route instructions",
  assert.equal(result.dexInstructionTrace[1].data,"inner");
  assert.equal(result.dexInstructionTrace[1].stackHeight,2);
 });
+
+
+test("normalizes raw SPL transfer amount with decimals from token balance metadata",()=>{
+ const tx={transaction:{message:{accountKeys:[WALLET,ATA_A,POOL],instructions:[
+  {programId:"spl-token",parsed:{type:"transfer",info:{source:POOL,destination:ATA_A,amount:"1250000"}}}
+ ]}},meta:{preTokenBalances:[{accountIndex:1,owner:WALLET,mint:"MintA",uiTokenAmount:{decimals:6,uiAmountString:"0"}}],postTokenBalances:[]}};
+ const result=decodeSwapEvidence(tx,{wallet:WALLET,tokenChanges:[{mint:"MintA",amount:1.25}]});
+ assert.equal(result.walletTokenLegs[0].side,"IN");
+ assert.equal(result.walletTokenLegs[0].rawAmount,"1250000");
+ assert.equal(result.walletTokenLegs[0].amountUi,1.25);
+ assert.equal(result.walletTokenLegs[0].decimals,6);
+});
