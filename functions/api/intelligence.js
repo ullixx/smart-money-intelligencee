@@ -2,9 +2,10 @@ import { createSolanaRpc } from "../lib/solana-rpc.js";
 import { analyseIntelligence, discoverWalletCandidates } from "../lib/intelligence-engine.js";
 import { selectPriceResolution } from "../lib/price-resolution.js";
 import { valueCapitalFlow } from "../lib/capital-flow-valuation.js";
+import { isValidSolanaAddress } from "../lib/solana-address.js";
 const GT="https://api.geckoterminal.com/api/v2";
 const GT_HEADERS={"accept":"application/json;version=20230203"};
-const validAddress=value=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
+const validAddress=isValidSolanaAddress;
 export async function onRequestGet({request,env}){
  const url=new URL(request.url);
  const seeds=[...new Set((url.searchParams.get("addresses")||"").split(",").map(x=>x.trim()).filter(validAddress))].slice(0,5);

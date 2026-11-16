@@ -1,9 +1,10 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
+import { isValidSolanaAddress } from "../lib/solana-address.js";
 export async function onRequestGet({request,env}){
  const rpc=createSolanaRpc(env);
  const signatureRequestLimit=1000;
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
- if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Token-Mint-Adresse"},{status:400});
+ if(!isValidSolanaAddress(address))return Response.json({status:"UNAVAILABLE",error:"Ungültige Token-Mint-Adresse"},{status:400});
  try{
   const [mintData,signatureData]=await Promise.all([
    rpc.call("getAccountInfo",[address,{encoding:"jsonParsed",commitment:"confirmed"}]),

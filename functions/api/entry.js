@@ -1,5 +1,6 @@
+import { isValidSolanaAddress } from "../lib/solana-address.js";
 import { createSolanaRpc } from "../lib/solana-rpc.js";
-const valid=a=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a);
+const valid=isValidSolanaAddress;
 export async function onRequestGet({request,env}){
  const rpc=createSolanaRpc(env);
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
