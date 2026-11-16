@@ -163,3 +163,29 @@ test("interleaves inner instructions after their parent in execution order",()=>
  assert.deepEqual(result.dexInstructionTrace.map(x=>x.data),["outer-jupiter","inner-jupiter","outer-after"]);
  assert.deepEqual(result.parsedInstructionTypes,["transfer"]);
 });
+
+
+test("does not treat SOL rent paid to a wallet token account as swap consideration",()=>{
+ const tx={transaction:{message:{accountKeys:[WALLET,ATA_A,POOL,JUP,SYSTEM],instructions:[
+  {program:"spl-associated-token-account",parsed:{type:"create",info:{account:ATA_A,wallet:WALLET,mint:"MintA"}}},
+  {programId:SYSTEM,parsed:{type:"transfer",info:{source:WALLET,destination:ATA_A,lamports:2039280}}},
+  {programId:"spl-token",parsed:{type:"transfer",info:{source:POOL,destination:ATA_A,mint:"MintA",amount:"100"}}},
+  {programId:JUP}
+ ]}},meta:{preTokenBalances:[],postTokenBalances:[]}};
+ const result=decodeSwapEvidence(tx,{wallet:WALLET,solDelta:-0.00203928,tokenChanges:[{mint:"MintA",amount:100}]});
+ assert.equal(result.systemTransfers[0].rentRelated,true);
+ assert.equal(result.hasWalletSystemTransferOut,false);
+ assert.equal(result.classification,"TOKEN_TRANSFER_IN");
+});
+
+test("recognizes Token-2022 transferCheckedWithFee wallet flows",()=>{
+ const TOKEN_2022="TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+ const tx={transaction:{message:{accountKeys:[WALLET,ATA_A,POOL],instructions:[
+  {programId:TOKEN_2022,parsed:{type:"transferCheckedWithFee",info:{source:POOL,destination:ATA_A,mint:"MintA",tokenAmount:{amount:"1000",decimals:2,uiAmountString:"10"},feeAmount:"5"}}}
+ ]}},meta:{preTokenBalances:[{accountIndex:1,owner:WALLET,mint:"MintA"}],postTokenBalances:[]}};
+ const result=decodeSwapEvidence(tx,{wallet:WALLET,tokenChanges:[{mint:"MintA",amount:10}]});
+ assert.equal(result.walletTokenTransfers.length,1);
+ assert.equal(result.walletTokenTransfers[0].tokenProgram,"TOKEN_2022");
+ assert.equal(result.walletTokenTransfers[0].feeAmount,"5");
+ assert.equal(result.walletTokenLegs[0].side,"IN");
+});
