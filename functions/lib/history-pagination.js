@@ -1,6 +1,6 @@
 export function parseHistoryWindow(url) {
   const params = url instanceof URL ? url.searchParams : new URL(url, "https://local.invalid").searchParams;
-  const requested = Number.parseInt(params.get("limit") || "25", 10);
+  const requested = Number.parseInt(params.get("limit") || "50", 10);
   const pageSize = Number.isFinite(requested) ? Math.max(1, Math.min(30, requested)) : 25;
   const before = (params.get("before") || "").trim() || null;
   return { pageSize, rpcLimit: pageSize + 1, before };
