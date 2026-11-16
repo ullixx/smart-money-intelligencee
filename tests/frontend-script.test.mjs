@@ -11,3 +11,11 @@ test("public inline JavaScript parses without syntax errors", () => {
   const source = html.slice(start + 8, end);
   assert.doesNotThrow(() => new Script(source));
 });
+
+
+test("discovery UI never renders unknown or partial risk as low risk",()=>{
+  const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+  assert.match(html,/t\.riskLevel==="PARTIAL"\?"TEILWEISE"/);
+  assert.match(html,/:"UNBEKANNT"\)/);
+  assert.match(html,/t\.riskLevel==="LOW"\?"NIEDRIG"/);
+});
