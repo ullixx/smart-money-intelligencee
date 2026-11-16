@@ -59,7 +59,7 @@ export async function onRequestGet({request,env}){
   const byMint=new Map();for(const e of priced){if(!byMint.has(e.mint))byMint.set(e.mint,[]);byMint.get(e.mint).push(e);}
   const results=[];
   for(const [mint,arr] of byMint){
-   arr.sort((a,b)=>a.time-b.time);const lots=[];let realized=0,matched=0,unmatched=0,profitableClosedLots=0;
+   arr.sort((a,b)=>a.time-b.time);const lots=[];let realized=0,matched=0,unmatched=0,profitableClosedLots=0,losingClosedLots=0,closedLots=0,totalHoldingSeconds=0;
    for(const e of arr){
     if(e.side==="BUY"){lots.push({amount:e.amount,price:e.priceUsd,time:e.time});if(e.priceUsd==null)unmatched++;}
     else {
@@ -68,8 +68,9 @@ export async function onRequestGet({request,env}){
       const lot=lots[0],qty=Math.min(remaining,lot.amount);
       if(lot.price==null||e.priceUsd==null){unmatched++;}else{
        const lotPnl=(e.priceUsd-lot.price)*qty;
-       realized+=lotPnl;matched+=qty;
-       if(lotPnl>0)profitableClosedLots++;
+       realized+=lotPnl;matched+=qty;closedLots++;
+       totalHoldingSeconds+=Math.max(0,e.time-lot.time);
+       if(lotPnl>0)profitableClosedLots++;else if(lotPnl<0)losingClosedLots++;
       }
       remaining-=qty;lot.amount-=qty;
       if(lot.amount<=1e-12)lots.shift();
@@ -78,9 +79,9 @@ export async function onRequestGet({request,env}){
      if(remaining>0)unmatched++;
     }
    }
-   results.push({mint,buys:arr.filter(x=>x.side==="BUY").length,sells:arr.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?realized:null,profitableClosedLots,openLots:lots.length,unmatchedEvents:unmatched,events:arr.map(({mint,...x})=>x),priceSource:priceMap[mint]?.status||"UNAVAILABLE",poolUrl:priceMap[mint]?.poolUrl||null});
+   results.push({mint,buys:arr.filter(x=>x.side==="BUY").length,sells:arr.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?realized:null,profitableClosedLots,losingClosedLots,closedLots,winRateClosedLots:closedLots?profitableClosedLots/closedLots:null,averageHoldingDays:closedLots?totalHoldingSeconds/closedLots/86400:null,openLots:lots.length,unmatchedEvents:unmatched,events:arr.map(({mint,...x})=>x),priceSource:priceMap[mint]?.status||"UNAVAILABLE",poolUrl:priceMap[mint]?.poolUrl||null});
   }
-  const closed=results.filter(x=>x.estimatedRealizedPnlUsd!==null),wins=closed.filter(x=>x.estimatedRealizedPnlUsd>0).length;
-  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover + DEX Screener + GeckoTerminal OHLCV",rpcProvider:activeProvider,address,checkedAt:new Date().toISOString(),events:priced.length,signaturesReceived:(sigs||[]).length,transactionsRequested:Math.min(25,(sigs||[]).length),skippedTransactions,unclassifiedTransactions,coverage:Math.round(decodedTransactions/Math.max(1,Math.min(25,(sigs||[]).length))*100),decodedTransactions,confirmedSwapTransactions:new Set(events.map(e=>e.signature)).size,historyStatus:(sigs||[]).length>=25?"LIMITED_TO_RECENT_25":"AVAILABLE_SIGNATURE_WINDOW",tokenResults:results,summary:{tokens:results.length,pricedEvents:priced.filter(x=>x.priceUsd!==null).length,unpricedEvents:priced.filter(x=>x.priceUsd===null).length,closedTokens:closed.length,positiveTokenPnlTokens:wins,tokenLevelPositiveShare:closed.length?wins/closed.length:null},note:"Nur bis zu 25 jüngste Transaktionen und bis zu 8 Token. RPC-Abdeckung misst erfolgreich geladene Transaktionen; unklassifizierte Bewegungen werden separat gezählt. Nur DEX_SWAP_EVIDENCE aus gemeinsamem Decoder (bekanntes DEX-Programm plus Wallet-Transfer-/Saldo-Indizien) gelangt in die FIFO-PnL-Auswertung; heuristische BUY/SELL-Kandidaten bleiben ausgeschlossen. FIFO-PnL ist eine Näherung aus Stundenkerzen-Schlusskursen und dem aktuell ermittelten Pool, nicht der exakte Ausführungspreis. Keine Gebühren-/Slippage-/MEV-/Steuerberechnung. Unbepreiste BUYs blockieren die FIFO-Zuordnung ihrer späteren SELL-Mengen, statt falsche Gewinne zu erzeugen. Trefferquote auf Token-Ebene, keine Trade-Trefferquote."},{headers:{"Cache-Control":"no-store"}});
+  const closed=results.filter(x=>x.estimatedRealizedPnlUsd!==null),wins=closed.filter(x=>x.estimatedRealizedPnlUsd>0).length,closedLots=results.reduce((n,x)=>n+(x.closedLots||0),0),winningLots=results.reduce((n,x)=>n+(x.profitableClosedLots||0),0),losingLots=results.reduce((n,x)=>n+(x.losingClosedLots||0),0),holdingDays=results.reduce((n,x)=>n+(x.averageHoldingDays||0)*(x.closedLots||0),0);
+  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover + DEX Screener + GeckoTerminal OHLCV",rpcProvider:activeProvider,address,checkedAt:new Date().toISOString(),events:priced.length,signaturesReceived:(sigs||[]).length,transactionsRequested:Math.min(25,(sigs||[]).length),skippedTransactions,unclassifiedTransactions,coverage:Math.round(decodedTransactions/Math.max(1,Math.min(25,(sigs||[]).length))*100),decodedTransactions,confirmedSwapTransactions:new Set(events.map(e=>e.signature)).size,historyStatus:(sigs||[]).length>=25?"LIMITED_TO_RECENT_25":"AVAILABLE_SIGNATURE_WINDOW",tokenResults:results,summary:{tokens:results.length,pricedEvents:priced.filter(x=>x.priceUsd!==null).length,unpricedEvents:priced.filter(x=>x.priceUsd===null).length,closedTokens:closed.length,positiveTokenPnlTokens:wins,tokenLevelPositiveShare:closed.length?wins/closed.length:null,closedFifoLots:closedLots,winningFifoLots:winningLots,losingFifoLots:losingLots,fifoLotWinRate:closedLots?winningLots/closedLots:null,averageHoldingDays:closedLots?holdingDays/closedLots:null,reputationStatus:closedLots>=10?"PARTIAL":"INSUFFICIENT_DATA"},note:"Nur bis zu 25 jüngste Transaktionen und bis zu 8 Token. RPC-Abdeckung misst erfolgreich geladene Transaktionen; unklassifizierte Bewegungen werden separat gezählt. Nur DEX_SWAP_EVIDENCE aus gemeinsamem Decoder (bekanntes DEX-Programm plus Wallet-Transfer-/Saldo-Indizien) gelangt in die FIFO-PnL-Auswertung; heuristische BUY/SELL-Kandidaten bleiben ausgeschlossen. FIFO-PnL ist eine Näherung aus Stundenkerzen-Schlusskursen und dem aktuell ermittelten Pool, nicht der exakte Ausführungspreis. FIFO-Lot-Trefferquote und Haltedauer sind stundenkursbasierte Näherungen, keine vollständige Wallet-Reputation. Keine Gebühren-/Slippage-/MEV-/Steuerberechnung. Unbepreiste BUYs blockieren die FIFO-Zuordnung ihrer späteren SELL-Mengen, statt falsche Gewinne zu erzeugen. Trefferquote auf Token-Ebene, keine Trade-Trefferquote."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){activeProvider=rpcClient.providerLabel();return Response.json({status:"UNAVAILABLE",rpcProvider:activeProvider,error:"Historische Performance konnte nicht berechnet werden",detail:e.message,tokenResults:[]},{status:502});}
 }
