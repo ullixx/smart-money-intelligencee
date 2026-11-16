@@ -80,3 +80,14 @@ test("does not call a one-sided wallet token transfer a swap",()=>{
  const r=decodeSwapEvidence(f.tx,{wallet:WALLET,solDelta:0,tokenChanges:f.changes});
  assert.equal(r.classification,"TOKEN_TRANSFER_IN");
 });
+
+test("maps newly created associated token accounts to the wallet without balance owner metadata",()=>{
+ const tx={transaction:{message:{accountKeys:[WALLET,ATA_A,POOL],instructions:[
+  {program:"spl-associated-token-account",parsed:{type:"create",info:{account:ATA_A,wallet:WALLET,mint:"MintA"}}},
+  {program:"spl-token",parsed:{type:"transferchecked",info:{source:POOL,destination:ATA_A,tokenAmount:{uiAmountString:"10"}}}}
+ ]}},meta:{preTokenBalances:[],postTokenBalances:[]}};
+ const r=decodeSwapEvidence(tx,{wallet:WALLET,solDelta:0,tokenChanges:[{mint:"MintA",amount:10}]});
+ assert.equal(r.walletTokenAccountsChecked,1);
+ assert.equal(r.hasWalletTokenTransferIn,true);
+ assert.equal(r.classification,"TOKEN_TRANSFER_IN");
+});
