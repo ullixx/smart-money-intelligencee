@@ -30,11 +30,10 @@ export function aggregatePerformancePages(pages = []) {
       if (!Number.isFinite(amount) || amount <= 0) { unmatchedEvents++; continue; }
       if (event.side === "BUY") {
         lots.push({ amount, price: Number.isFinite(event.priceUsd) ? event.priceUsd : null, time: event.time });
-        else unmatchedEvents++;
+        if (!Number.isFinite(event.priceUsd)) unmatchedEvents++;
         continue;
       }
-      if (Number.isFinite(event.priceUsd)) pricedSells++;
-      let remaining = amount, matchedThisSell = false;
+      let remaining = amount;
       while (remaining > 1e-12 && lots.length) {
         const lot = lots[0], quantity = Math.min(remaining, lot.amount);
         if (lot.price == null || !Number.isFinite(event.priceUsd)) {
@@ -49,7 +48,6 @@ export function aggregatePerformancePages(pages = []) {
           holdingSeconds += Math.max(0, event.time - lot.time);
           if (pnl > 0) winningLots++;
           else if (pnl < 0) losingLots++;
-          matchedThisSell = true;
         }
         remaining -= quantity;
         lot.amount -= quantity;
