@@ -42,7 +42,7 @@ test("calculates a loss and labels incomplete price coverage", () => {
     event("sell-1", "SELL", 200, 15)
   ])]);
   assert.equal(result.tokenResults[0].estimatedRealizedPnlUsd, -5);
-  assert.equal(result.tokenResults[0].losingClosedLots, 1);
+  assert.equal(result.tokenResults[0].losingTrades, 1);
   assert.equal(result.tokenResults[0].status, "HISTORICAL");
 });
 
