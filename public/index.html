@@ -269,7 +269,7 @@ document.getElementById("networkButton").addEventListener("click",inspectNetwork
 async function inspectRanking(){
  const list=getWallets().slice(0,10),out=document.getElementById("rankingResult");
  if(!list.length){out.textContent="Bitte zuerst Wallets speichern.";return;}
- out.textContent="Analysiere bis zu 15 aktuelle Transaktionen je Wallet …";
+ out.textContent="Analysiere bis zu 10 aktuelle Transaktionen je Wallet …";
  try{
   const r=await fetch("/api/ranking?wallets="+encodeURIComponent(list.join(",")),{cache:"no-store"}),d=await r.json();
   if(!r.ok)throw new Error(d.detail||d.error||"Ranking fehlgeschlagen");
