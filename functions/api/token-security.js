@@ -1,5 +1,6 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 import { assessPoolLiquidityRisk } from "../lib/liquidity-risk.js";
+import { decodeRaydiumV4LpMint } from "../lib/raydium-lp.js";
 export async function onRequestGet({request,env}){
  const rpc=createSolanaRpc(env);
  const address=new URL(request.url).searchParams.get("address")?.trim()||"";
@@ -28,8 +29,41 @@ export async function onRequestGet({request,env}){
   const riskFlags=[];if(info.mintAuthority)riskFlags.push("MINT_AUTHORITY_ACTIVE");if(info.freezeAuthority)riskFlags.push("FREEZE_AUTHORITY_ACTIVE");if(total>0&&top10Owners/total>0.5)riskFlags.push("TOP10_OBSERVED_OWNERS_OVER_50_PERCENT");else if(top20OwnerShare!==null&&top20OwnerShare>0.7)riskFlags.push("TOP20_OBSERVED_OWNERS_OVER_70_PERCENT");
   const pairs=Array.isArray(pairsResponse)?pairsResponse:[];
   const pool=pairs.filter(p=>p?.chainId==="solana"&&(p.baseToken?.address===address||p.quoteToken?.address===address)).sort((a,b)=>(Number(b.liquidity?.usd)||0)-(Number(a.liquidity?.usd)||0))[0]||null;
+  let lpControl={status:"UNAVAILABLE",reason:"LP-Mint kann für diesen Pool-Typ noch nicht sicher aus dem Pool-State dekodiert werden.",lockVerification:"UNAVAILABLE"};
+  if(pool?.pairAddress){
+   try{
+    const poolAccount=await rpc.call("getAccountInfo",[pool.pairAddress,{encoding:"base64",commitment:"confirmed"}]);
+    const encoded=poolAccount?.value?.data?.[0];
+    if(typeof encoded==="string"){
+     const binary=atob(encoded),bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
+     const decoded=decodeRaydiumV4LpMint({programOwner:poolAccount.value.owner,data:bytes});
+     if(decoded.status==="DECODED"){
+      const [lpSupply,lpLargest]=await Promise.all([
+       rpc.call("getTokenSupply",[decoded.lpMint,{commitment:"confirmed"}]),
+       rpc.call("getTokenLargestAccounts",[decoded.lpMint,{commitment:"confirmed"}])
+      ]);
+      const lpTotal=Number(lpSupply?.value?.uiAmountString||0);
+      const lpAccounts=(lpLargest?.value||[]).slice(0,10);
+      const lpDetails=lpAccounts.length?await rpc.call("getMultipleAccounts",[lpAccounts.map(x=>x.address),{encoding:"jsonParsed",commitment:"confirmed"}]):{value:[]};
+      const authorities=lpAccounts.map((item,index)=>({tokenAccount:item.address,amount:Number(item.uiAmountString||0),share:lpTotal>0?Number(item.uiAmountString||0)/lpTotal:null,authority:lpDetails?.value?.[index]?.data?.parsed?.info?.owner||null}));
+      const authorityAddresses=[...new Set(authorities.map(x=>x.authority).filter(Boolean))];
+      const authorityDetails=authorityAddresses.length?await rpc.call("getMultipleAccounts",[authorityAddresses,{encoding:"base64",commitment:"confirmed"}]):{value:[]};
+      const authorityPrograms=new Map(authorityAddresses.map((key,index)=>[key,authorityDetails?.value?.[index]?.owner||null]));
+      for(const item of authorities)item.authorityAccountOwnerProgram=item.authority?authorityPrograms.get(item.authority)||null:null;
+      const top10Share=authorities.reduce((sum,item)=>sum+(item.share||0),0);
+      lpControl={status:"PARTIAL",poolProgram:poolAccount.value.owner,lpMint:decoded.lpMint,layout:decoded.layout,lpSupply:lpTotal,topLpTokenAccounts:authorities,top10LpTokenAccountShare:lpTotal>0?top10Share:null,lockVerification:"UNAVAILABLE",reason:"LP-Token-Mint und größte LP-Token-Accounts on-chain gelesen. Ein Holder kann ein Locker, ein Pool-Vault oder eine normale Wallet sein; ohne validierte Locker-Program- und Vesting-Daten wird keine Sperre behauptet.",checkedAt:new Date().toISOString()};
+     }else{
+      lpControl={status:decoded.status,reason:decoded.reason,lockVerification:"UNAVAILABLE",poolProgram:poolAccount?.value?.owner||null};
+     }
+    }else{
+     lpControl={status:"UNAVAILABLE",reason:"Pool-Account oder binäre Account-Daten nicht verfügbar.",lockVerification:"UNAVAILABLE"};
+    }
+   }catch(error){
+    lpControl={status:"UNAVAILABLE",reason:"LP-Token-Daten konnten nicht sicher gelesen werden: "+error.message,lockVerification:"UNAVAILABLE"};
+   }
+  }
   const liquidityAssessment=assessPoolLiquidityRisk({liquidityUsd:pool?.liquidity?.usd,fdvUsd:pool?.fdv,volume24hUsd:pool?.volume?.h24});
   const {liquidityUsd:poolLiquidityUsd,fdvUsd:poolFdvUsd,volume24hUsd,liquidityToFdvRatio,volumeToLiquidity24h,flags:liquidityFlags}=liquidityAssessment;
-  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:rpc.providerLabel(),address,checkedAt:new Date().toISOString(),mintAuthorityActive:!!info.mintAuthority,freezeAuthorityActive:!!info.freezeAuthority,mintAuthority:info.mintAuthority||null,freezeAuthority:info.freezeAuthority||null,decimals:info.decimals??null,supply:total,largestTokenAccounts:holders,top10TokenAccountShare:total>0?top10/total:null,largestOwners,top10OwnerShare:total>0?top10Owners/total:null,top20ObservedOwnerShare:top20OwnerShare,riskAssessment:{status:"PARTIAL",flags:riskFlags,level:riskFlags.length>=2?"ELEVATED":riskFlags.length===1?"WATCH":"NO_SIGNAL",basis:"Mint-Authority, Freeze-Authority und Eigentümer der 20 größten Token-Accounts; keine vollständige Holder-Kontrollanalyse."},liquidityRisk:{status:pool?liquidityAssessment.status:"UNAVAILABLE",source:pool?"DexScreener größter gefundener Solana-Pool":"DexScreener-Pooldaten nicht verfügbar",poolAddress:pool?.pairAddress||null,poolUrl:pool?.url||null,dexId:pool?.dexId||null,liquidityUsd:poolLiquidityUsd,fdvUsd:poolFdvUsd,marketCapUsd:pool&&Number.isFinite(Number(pool.marketCap))?Number(pool.marketCap):null,volume24hUsd,liquidityToFdvRatio,volumeToLiquidity24h,flags:liquidityFlags,level:pool?liquidityAssessment.level:"UNAVAILABLE",note:"Nur der größte aktuell gefundene Pool. Keine LP-Token-Sperrprüfung, keine vollständige Liquiditäts-Historie und keine Garantie, dass die gesamte Liquidität tatsächlich abziehbar ist."},note:"Owner-Konzentration wird aus den Eigentümerfeldern der 20 größten Token-Accounts gruppiert. Das ist keine vollständige Holder-Liste: kleinere Accounts fehlen; Pools, Börsen und Verwahrstellen können enthalten sein. Kein vollständiger Rug-Pull- oder Audit-Check."},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:rpc.providerLabel(),address,checkedAt:new Date().toISOString(),mintAuthorityActive:!!info.mintAuthority,freezeAuthorityActive:!!info.freezeAuthority,mintAuthority:info.mintAuthority||null,freezeAuthority:info.freezeAuthority||null,decimals:info.decimals??null,supply:total,largestTokenAccounts:holders,top10TokenAccountShare:total>0?top10/total:null,largestOwners,top10OwnerShare:total>0?top10Owners/total:null,top20ObservedOwnerShare:top20OwnerShare,riskAssessment:{status:"PARTIAL",flags:riskFlags,level:riskFlags.length>=2?"ELEVATED":riskFlags.length===1?"WATCH":"NO_SIGNAL",basis:"Mint-Authority, Freeze-Authority und Eigentümer der 20 größten Token-Accounts; keine vollständige Holder-Kontrollanalyse."},liquidityRisk:{status:pool?liquidityAssessment.status:"UNAVAILABLE",source:pool?"DexScreener größter gefundener Solana-Pool":"DexScreener-Pooldaten nicht verfügbar",poolAddress:pool?.pairAddress||null,poolUrl:pool?.url||null,dexId:pool?.dexId||null,liquidityUsd:poolLiquidityUsd,fdvUsd:poolFdvUsd,marketCapUsd:pool&&Number.isFinite(Number(pool.marketCap))?Number(pool.marketCap):null,volume24hUsd,liquidityToFdvRatio,volumeToLiquidity24h,flags:liquidityFlags,level:pool?liquidityAssessment.level:"UNAVAILABLE",lpControl,note:"Nur der größte aktuell gefundene Pool. Keine LP-Token-Sperrprüfung, keine vollständige Liquiditäts-Historie und keine Garantie, dass die gesamte Liquidität tatsächlich abziehbar ist."},note:"Owner-Konzentration wird aus den Eigentümerfeldern der 20 größten Token-Accounts gruppiert. Das ist keine vollständige Holder-Liste: kleinere Accounts fehlen; Pools, Börsen und Verwahrstellen können enthalten sein. Kein vollständiger Rug-Pull- oder Audit-Check."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana RPC mit automatischem Failover",rpcProvider:rpc.providerLabel(),error:"Token-Sicherheitsdaten nicht verfügbar",detail:e.message},{status:502,headers:{"Cache-Control":"no-store"}});}
 }
