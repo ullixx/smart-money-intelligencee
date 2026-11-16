@@ -197,7 +197,7 @@ function mergePerformancePages(pages){
  const tokenResults=[];
  for(const [mint,events] of byMint){
   events.sort((a,b)=>a.time-b.time||String(a.signature).localeCompare(String(b.signature)));
-  const lots=[];let pnl=0,matched=0,closedLots=0,wins=0,losses=0,partialTrades=0,hold=0,unmatched=0,grossProfit=0,grossLoss=0;
+  const lots=[];let pnl=0,matched=0,closedLots=0,wins=0,losses=0,breakeven=0,partialTrades=0,hold=0,unmatched=0,grossProfit=0,grossLoss=0;
   for(const event of events){
    const amount=Number(event.amount);
    if(!Number.isFinite(amount)||amount<=0){unmatched++;continue;}
@@ -210,15 +210,15 @@ function mergePerformancePages(pages){
     remaining-=qty;lot.amount-=qty;if(lot.amount<=1e-12)lots.shift();
    }
    if(remaining>1e-12){unmatched++;complete=false;}
-   if(tradeMatched>0){if(complete){if(tradePnl>0){wins++;grossProfit+=tradePnl;}else if(tradePnl<0){losses++;grossLoss+=Math.abs(tradePnl);}hold+=(tradeHold/tradeMatched)/86400;}else partialTrades++;}
+   if(tradeMatched>0){if(complete){if(tradePnl>0){wins++;grossProfit+=tradePnl;}else if(tradePnl<0){losses++;grossLoss+=Math.abs(tradePnl);}else breakeven++;hold+=(tradeHold/tradeMatched)/86400;}else partialTrades++;}
   }
-  const closedTrades=wins+losses;
-  tokenResults.push({mint,buys:events.filter(x=>x.side==="BUY").length,sells:events.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?pnl:null,closedLots,closedTrades,winningTrades:wins,losingTrades:losses,partialClosedTrades:partialTrades,averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,grossProfitUsd:grossProfit,grossLossUsd:grossLoss,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),winRateClosedTrades:closedTrades?wins/closedTrades:null,averageHoldingDays:closedTrades?hold/closedTrades:null,openLots:lots.length,unmatchedEvents:unmatched,priceSource:events.every(x=>Number.isFinite(x.priceUsd))?"HISTORICAL":"PARTIAL"});
+  const closedTrades=wins+losses+breakeven;
+  tokenResults.push({mint,buys:events.filter(x=>x.side==="BUY").length,sells:events.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?pnl:null,closedLots,closedTrades,winningTrades:wins,losingTrades:losses,breakevenTrades:breakeven,partialClosedTrades:partialTrades,averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,grossProfitUsd:grossProfit,grossLossUsd:grossLoss,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),winRateClosedTrades:closedTrades?wins/closedTrades:null,averageHoldingDays:closedTrades?hold/closedTrades:null,openLots:lots.length,unmatchedEvents:unmatched,priceSource:events.every(x=>Number.isFinite(x.priceUsd))?"HISTORICAL":"PARTIAL"});
  }
- const closedLots=tokenResults.reduce((n,x)=>n+x.closedLots,0),closedTrades=tokenResults.reduce((n,x)=>n+x.closedTrades,0),wins=tokenResults.reduce((n,x)=>n+x.winningTrades,0),losses=tokenResults.reduce((n,x)=>n+x.losingTrades,0),partialTrades=tokenResults.reduce((n,x)=>n+x.partialClosedTrades,0);
+ const closedLots=tokenResults.reduce((n,x)=>n+x.closedLots,0),closedTrades=tokenResults.reduce((n,x)=>n+x.closedTrades,0),wins=tokenResults.reduce((n,x)=>n+x.winningTrades,0),losses=tokenResults.reduce((n,x)=>n+x.losingTrades,0),breakeven=tokenResults.reduce((n,x)=>n+(x.breakevenTrades||0),0),partialTrades=tokenResults.reduce((n,x)=>n+x.partialClosedTrades,0);
  const grossProfit=tokenResults.reduce((n,x)=>n+x.grossProfitUsd,0),grossLoss=tokenResults.reduce((n,x)=>n+x.grossLossUsd,0),realized=tokenResults.reduce((n,x)=>n+(x.estimatedRealizedPnlUsd||0),0);
  const closed=tokenResults.filter(x=>x.estimatedRealizedPnlUsd!==null),priced=[...unique.values()].filter(x=>Number.isFinite(x.priceUsd)).length;
- return {events:unique.size,tokenResults,summary:{tokens:tokenResults.length,pricedEvents:priced,unpricedEvents:unique.size-priced,closedTokens:closed.length,positiveTokenPnlTokens:closed.filter(x=>x.estimatedRealizedPnlUsd>0).length,tokenLevelPositiveShare:closed.length?closed.filter(x=>x.estimatedRealizedPnlUsd>0).length/closed.length:null,closedFifoLots:closedLots,closedTrades,winningTrades:wins,losingTrades:losses,partialClosedTrades:partialTrades,fifoLotWinRate:closedTrades?wins/closedTrades:null,estimatedRealizedPnlUsd:closedLots?realized:null,grossProfitUsd:grossProfit,grossLossUsd:grossLoss,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,averageHoldingDays:closedTrades?tokenResults.reduce((n,x)=>n+(x.averageHoldingDays||0)*x.closedTrades,0)/closedTrades:null,reputationStatus:closedTrades>=10?"PARTIAL":"INSUFFICIENT_DATA"}};
+ return {events:unique.size,tokenResults,summary:{tokens:tokenResults.length,pricedEvents:priced,unpricedEvents:unique.size-priced,closedTokens:closed.length,positiveTokenPnlTokens:closed.filter(x=>x.estimatedRealizedPnlUsd>0).length,tokenLevelPositiveShare:closed.length?closed.filter(x=>x.estimatedRealizedPnlUsd>0).length/closed.length:null,closedFifoLots:closedLots,closedTrades,winningTrades:wins,losingTrades:losses,breakevenTrades:breakeven,partialClosedTrades:partialTrades,fifoLotWinRate:closedTrades?wins/closedTrades:null,estimatedRealizedPnlUsd:closedLots?realized:null,grossProfitUsd:grossProfit,grossLossUsd:grossLoss,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,averageHoldingDays:closedTrades?tokenResults.reduce((n,x)=>n+(x.averageHoldingDays||0)*x.closedTrades,0)/closedTrades:null,reputationStatus:closedTrades>=10?"PARTIAL":"INSUFFICIENT_DATA"}};
 }
 async function inspectPerformance(before=null){
  const list=getWallets(),out=document.getElementById("performanceResult");
