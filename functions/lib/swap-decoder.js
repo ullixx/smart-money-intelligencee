@@ -50,7 +50,6 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
   if(["initializeaccount","initializeaccount2","initializeaccount3"].includes(type)&&info.owner===wallet){const account=info.account||info.accountAddress||info.tokenAccount;if(account)walletTokenAccounts.add(account);}
  }
  const createdAccounts=new Set(instructions.flatMap(ix=>{const info=ix.parsed?.info||{},type=String(ix.parsed?.type||"").toLowerCase();return ["createaccount","createaccountwithseed"].includes(type)&&info.newAccount?[info.newAccount]:[]}));
- const createdAccounts=new Set(instructions.flatMap(ix=>{const info=ix.parsed?.info||{},type=String(ix.parsed?.type||"").toLowerCase();return ["createaccount","createaccountwithseed"].includes(type)&&info.newAccount?[info.newAccount]:[]}));
  const tokenTransfers=[],systemTransfers=[];
  for(const ix of instructions){
   const id=ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null);
