@@ -13,7 +13,8 @@ test("matches BUY and SELL lots across separately loaded history pages", () => {
   const token = result.tokenResults[0];
   assert.equal(token.closedLots, 1);
   assert.equal(token.estimatedRealizedPnlUsd, 5);
-  assert.equal(token.winRateClosedLots, 1);
+  assert.equal(token.winRateClosedTrades, 1);
+  assert.equal(token.closedTrades, 1);
   assert.equal(result.summary.averageHoldingDays, 100 / 86400);
 });
 
@@ -56,6 +57,33 @@ test("calculates profit factor and average win and loss from closed FIFO fragmen
   assert.equal(token.grossProfitUsd, 5);
   assert.equal(token.grossLossUsd, 10);
   assert.equal(token.profitFactor, 0.5);
+  assert.equal(token.closedTrades, 2);
   assert.equal(token.averageWinUsd, 5);
   assert.equal(token.averageLossUsd, 10);
+});
+
+test("does not inflate win rate when one sell consumes several FIFO lots", () => {
+  const result = aggregatePerformancePages([page([
+    event("buy-a", "BUY", 100, 10, 1),
+    event("buy-b", "BUY", 110, 12, 1),
+    event("sell-one", "SELL", 200, 15, 2)
+  ])]);
+  const token = result.tokenResults[0];
+  assert.equal(token.closedLots, 2);
+  assert.equal(token.closedTrades, 1);
+  assert.equal(token.winningTrades, 1);
+  assert.equal(token.winRateClosedTrades, 1);
+  assert.equal(token.estimatedRealizedPnlUsd, 8);
+});
+
+test("excludes partly priced sells from the trade hit-rate denominator", () => {
+  const result = aggregatePerformancePages([page([
+    event("buy-priced", "BUY", 100, 10, 1),
+    event("buy-unpriced", "BUY", 110, null, 1),
+    event("sell-partial", "SELL", 200, 15, 2)
+  ])]);
+  const token = result.tokenResults[0];
+  assert.equal(token.partialClosedTrades, 1);
+  assert.equal(token.closedTrades, 0);
+  assert.equal(token.winRateClosedTrades, null);
 });
