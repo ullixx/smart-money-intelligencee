@@ -26,7 +26,7 @@ test("fee payer discovery excludes already tracked wallets",()=>{
 });
 
 test("discovers fee payers and SOL transfer counterparties as unconfirmed candidates",()=>{
- const peer="Wallet3333333333333333333333333333333333";
+ const peer="Waaet33333333333333333333333333333333333";
  const tx={transaction:{message:{accountKeys:[A],instructions:[{programId:"11111111111111111111111111111111",parsed:{type:"transfer",info:{source:A,destination:peer,lamports:1000}}}]}},meta:{innerInstructions:[]}};
  const candidates=discoverWalletCandidates({[A]:[tx]},[A]);
  assert.equal(candidates[0].address,peer);
