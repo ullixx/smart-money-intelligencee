@@ -12,7 +12,7 @@ export async function onRequestGet({request,env}){
    rpc.call("getAccountInfo",[address,{encoding:"jsonParsed",commitment:"confirmed"}]),
    rpc.call("getTokenSupply",[address,{commitment:"confirmed"}]),
    rpc.call("getTokenLargestAccounts",[address,{commitment:"confirmed"}]),
-   fetch("https://api.dexscreener.com/token-pairs/v1/solana/"+address).then(async r=>r.ok?await r.json():null).catch(()=>null)
+   fetch("https://api.dexscreener.com/token-pairs/v1/solana/"+address,{signal:AbortSignal.timeout(10000)}).then(async r=>r.ok?await r.json():null).catch(()=>null)
   ]);
   const info=account?.value?.data?.parsed?.info,supplyData=supply,largestData=largest;
   if(!info||info.decimals===undefined)throw new Error("Adresse ist kein unterstützter SPL-Token-Mint oder Mint-Daten fehlen");
