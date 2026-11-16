@@ -23,7 +23,7 @@ export async function onRequestGet({request,env}){
   };
   const first=await getRecent(seeds);
   const discovered=discoverWalletCandidates(first.byWallet,seeds);
-  const expandedAddresses=discovered.map(x=>x.address);
+  const expandedAddresses=discovered.slice(0,20).map(x=>x.address);
   const second=expandedAddresses.length?await getRecent(expandedAddresses):{byWallet:{},requested:0};
   const allWallets=[...seeds,...expandedAddresses];
   const transactionsByWallet={...first.byWallet,...second.byWallet};
