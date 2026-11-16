@@ -55,3 +55,20 @@ test("C discovers direct SOL transfer counterparties, not only fee payers",()=>{
  assert.equal(result.walletDiscovery[0].discoveryReason,"Gegenpartei eines beobachteten SOL-Transfers");
  assert.equal(result.walletRanking[0].counterparties.includes(peer),true);
 });
+
+
+test("excludes SOL rent paid to a wallet token account from SOL transfer metrics",()=>{
+ const SYSTEM="11111111111111111111111111111111";
+ const TOKEN="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+ const ATA="AtaA111111111111111111111111111111111111";
+ const POOL="Pool111111111111111111111111111111111111";
+ const rentTx={blockTime:4,transaction:{message:{accountKeys:[A,ATA,POOL,SYSTEM,TOKEN],instructions:[
+  {program:"spl-associated-token-account",parsed:{type:"create",info:{account:ATA,wallet:A,mint:"MintA"}}},
+  {programId:SYSTEM,parsed:{type:"transfer",info:{source:A,destination:ATA,lamports:2039280}}},
+  {programId:TOKEN,parsed:{type:"transfer",info:{source:POOL,destination:ATA,mint:"MintA",amount:"100"}}}
+ ]}},meta:{fee:5000,innerInstructions:[],preTokenBalances:[],postTokenBalances:[]}};
+ const result=analyseIntelligence({wallets:[A],transactionsByWallet:{[A]:[rentTx]}});
+ assert.equal(result.walletRanking[0].solOut,0);
+ assert.equal(result.walletRanking[0].netSolTransfers,0);
+ assert.equal(result.walletRanking[0].counterparties.includes(ATA),false);
+});
