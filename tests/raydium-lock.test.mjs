@@ -9,7 +9,7 @@ import {
   CLMM_DISCRIMINATOR
 } from "../functions/lib/raydium-lock.js";
 
-const key = "1".repeat(31) + "2";
+const key = "4uQeVj5tqViQh7yWWGStvkEG1Zmhx6uasJtWCJziofM";
 
 test("decodes a Raydium CPMM Burn & Earn state with pool and locked LP amount", () => {
   const data = new Uint8Array(256);
