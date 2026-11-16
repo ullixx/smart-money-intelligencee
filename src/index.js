@@ -26,23 +26,38 @@ const routes = {
   "/api/intelligence": intelligence
 };
 
+const SECURITY_HEADERS = {
+  "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; upgrade-insecure-requests",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
+};
+
+function secureResponse(response) {
+  const headers = new Headers(response.headers);
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const handler = routes[url.pathname];
     if (handler) {
       if (request.method !== "GET") {
-        return Response.json({ status: "UNAVAILABLE", error: "Method not allowed" }, { status: 405 });
+        return secureResponse(Response.json({ status: "UNAVAILABLE", error: "Method not allowed" }, { status: 405 }));
       }
       try {
-        return await handler({ request, env, params: {} });
+        return secureResponse(await handler({ request, env, params: {} }));
       } catch (error) {
-        return Response.json({
+        return secureResponse(Response.json({
           status: "UNAVAILABLE",
           error: error?.message || "Interner Worker-Fehler"
-        }, { status: 500, headers: { "Cache-Control": "no-store" } });
+        }, { status: 500, headers: { "Cache-Control": "no-store" } }));
       }
     }
-    return env.ASSETS.fetch(request);
+    return secureResponse(await env.ASSETS.fetch(request));
   }
 };
