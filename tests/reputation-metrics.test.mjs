@@ -87,3 +87,17 @@ test("excludes partly priced sells from the trade hit-rate denominator", () => {
   assert.equal(token.closedTrades, 0);
   assert.equal(token.winRateClosedTrades, null);
 });
+
+test("counts break-even exits in the completed-trade denominator", () => {
+  const result = aggregatePerformancePages([page([
+    event("buy-a", "BUY", 100, 10),
+    event("sell-a", "SELL", 200, 10),
+    event("buy-b", "BUY", 300, 10),
+    event("sell-b", "SELL", 400, 15)
+  ])]);
+  const token = result.tokenResults[0];
+  assert.equal(token.closedTrades, 2);
+  assert.equal(token.breakevenTrades, 1);
+  assert.equal(token.winningTrades, 1);
+  assert.equal(token.winRateClosedTrades, 0.5);
+});
