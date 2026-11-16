@@ -53,10 +53,14 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
         }
       }
       const nonSol = [...before].filter(([mint,delta])=>mint!==WSOL&&delta!==0);
-      const hasIn = nonSol.some(([,delta])=>delta>0), hasOut=nonSol.some(([,delta])=>delta<0);
-      const wsolDelta = before.get(WSOL)||0;
-      if (hasIn && wsolDelta < 0) buys++;
-      if (hasOut && wsolDelta > 0) sells++;
+      const tokenChanges=[...before.entries()].map(([mint,amount])=>({mint,amount})).filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
+      const evidence=decodeSwapEvidence(tx,{wallet,tokenChanges});
+      if(evidence.classification==="DEX_SWAP_EVIDENCE"){
+        confirmedDexSwaps++;
+        if(evidence.direction==="SOL_TO_TOKEN")buys++;
+        else if(evidence.direction==="TOKEN_TO_SOL")sells++;
+        else if(evidence.direction==="TOKEN_TO_TOKEN"){buys++;sells++;}
+      }else if(evidence.classification==="SWAP_CANDIDATE")swapCandidates++;
       for (const ix of [...(message.instructions || []), ...(meta.innerInstructions || []).flatMap(x=>x.instructions || [])]) {
         const info=ix.parsed?.info||{};
         for (const address of [info.source,info.destination]) if (typeof address==="string" && address!==wallet && address.length>=32 && address.length<=44 && !address.startsWith("Ata")) {
@@ -115,7 +119,7 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
     clusters:{directTransfers:clusters,sharedTokenExposure:sharedTokenClusters,note:"Transfer- oder gemeinsame Token-Indizien beweisen keine gemeinsame Kontrolle."},
     capitalFlows,
     riskAssessment:risk,
-    limitations:["Nur die abgefragten Wallets und bis zu fünf jüngste Transaktionen je Wallet.","Historische Saldenänderungen; keine vollständige Marktpreis- oder PnL-Berechnung.",\n      "Kapitalflüsse werden in Token-Einheiten ausgewiesen; USD-Bewertung ist UNAVAILABLE, solange historische Preise nicht zeitpunktgenau zugeordnet sind.",\n      "Wallet-Reputation ist nicht berechnet: Aktivität und Swap-Indizien sind kein Gewinn- oder Qualitätsnachweis.","Fee-Payer und Transfer-Gegenparteien sind Kandidaten, keine bestätigten Smart-Money-Wallets.","Keine automatisierte Wallet-Verbindung und keine Trading-Aktionen."]
+    limitations:["Nur die abgefragten Wallets und bis zu fünf jüngste Transaktionen je Wallet.","Historische Saldenänderungen; keine vollständige Marktpreis- oder PnL-Berechnung.","Kapitalflüsse werden in Token-Einheiten ausgewiesen; USD-Bewertung ist UNAVAILABLE, solange historische Preise nicht zeitpunktgenau zugeordnet sind.","Wallet-Reputation ist nicht berechnet: Aktivität und Swap-Indizien sind kein Gewinn- oder Qualitätsnachweis.","Fee-Payer und Transfer-Gegenparteien sind Kandidaten, keine bestätigten Smart-Money-Wallets.","Keine automatisierte Wallet-Verbindung und keine Trading-Aktionen."]
   };
 }
 
