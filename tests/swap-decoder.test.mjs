@@ -46,3 +46,37 @@ test("marks known DEX plus wallet token flow and opposing balances as DEX eviden
  assert.equal(r.classification,"DEX_SWAP_EVIDENCE");
  assert.deepEqual(r.dexPrograms,["Jupiter"]);
 });
+
+const DEX_FIXTURES=[
+ ["Raydium AMM v4","675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"],
+ ["Raydium CPMM","CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C"],
+ ["Raydium CLMM","CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK"],
+ ["Raydium LaunchLab","LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj"],
+ ["Orca legacy","9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP"],
+ ["Meteora DBC","dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN"],
+ ["Meteora DAMM v1","Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB"],
+ ["Meteora DAMM v2","cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG"],
+ ["PumpSwap","pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"],
+ ["Jupiter v4","JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB"]
+];
+for(const [name,programId] of DEX_FIXTURES){
+ test(`recognizes ${name} only with wallet-linked token flows`,()=>{
+  const f=fixture({tokenIn:true,tokenOut:true});
+  f.tx.transaction.message.instructions.push({programId});
+  const r=decodeSwapEvidence(f.tx,{wallet:WALLET,solDelta:0,tokenChanges:f.changes});
+  assert.equal(r.classification,"DEX_SWAP_EVIDENCE");
+  assert.ok(r.dexPrograms.includes(name));
+ });
+}
+test("does not label an unrelated program as a known DEX",()=>{
+ const f=fixture({tokenIn:true,tokenOut:true});
+ f.tx.transaction.message.instructions.push({programId:"Unrelated11111111111111111111111111111111"});
+ const r=decodeSwapEvidence(f.tx,{wallet:WALLET,solDelta:0,tokenChanges:f.changes});
+ assert.equal(r.classification,"SWAP_CANDIDATE");
+ assert.deepEqual(r.dexPrograms,[]);
+});
+test("does not call a one-sided wallet token transfer a swap",()=>{
+ const f=fixture({dex:true,tokenIn:true});
+ const r=decodeSwapEvidence(f.tx,{wallet:WALLET,solDelta:0,tokenChanges:f.changes});
+ assert.equal(r.classification,"TOKEN_TRANSFER_IN");
+});
