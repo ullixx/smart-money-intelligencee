@@ -27,9 +27,18 @@ export async function onRequestGet({request,env}){
    const rpcErrors={},mintCounts=new Map(),buyMints=new Set();
    try{signatures=await rpc.call("getSignaturesForAddress",[address,{limit:20,commitment:"confirmed"}]);}
    catch(e){results.push({address,status:"UNAVAILABLE",score:null,error:e.message,analysed:0,skipped:0});continue;}
-   for(const sig of (signatures||[]).slice(0,perWalletLimit)){
+   const selected=(signatures||[]).slice(0,perWalletLimit);
+   let txBatch=[];
+   try{
+    txBatch=await rpc.callBatch(selected.map(sig=>({method:"getTransaction",params:[sig.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:2}]})));
+   }catch(e){
+    for(let i=0;i<selected.length;i++){skipped++;skipReasons.rpcError++;const m=String(e?.message||e).slice(0,180);rpcErrors[m]=(rpcErrors[m]||0)+1;}
+   }
+   for(let txIndex=0;txIndex<selected.length;txIndex++){
     try{
-     const tx=await rpc.call("getTransaction",[sig.signature,{encoding:"jsonParsed",commitment:"confirmed",maxSupportedTransactionVersion:2}]);
+     if(!txBatch.length)break;
+     const tx=txBatch[txIndex];
+     if(tx?.__rpcError)throw new Error(tx.__rpcError);
      if(!tx){skipReasons.transactionNotFound++;skipped++;continue;}
      if(!tx.meta){skipReasons.missingMetadata++;skipped++;continue;}
      if(tx.meta.err){skipReasons.failedTransaction++;skipped++;continue;}
@@ -72,6 +81,6 @@ export async function onRequestGet({request,env}){
   }
   const ranked=results.filter(x=>x.score!==null).sort((a,b)=>b.score-a.score);
   ranked.forEach((x,i)=>x.rank=i+1);
-  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:rpc.providerLabel(),checkedAt:new Date().toISOString(),walletsChecked:wallets.length,ranked:[...ranked,...results.filter(x=>x.score===null)],note:"Maximal 10 der letzten 20 Signaturen je Wallet, damit bei mehreren Wallets das Cloudflare-Subrequest-Budget nicht ausgeschöpft wird. Transfers und reine Aktivität ohne Swap-Hinweis erzeugen keinen Ranking-Score. DEX-Programm plus Salden ist ein Swap-Hinweis, aber keine vollständige wirtschaftliche Swap-Dekodierung. BUY/SELL bleiben teilweise heuristisch; kein PnL und keine nachgewiesene Smart-Money-Qualität."},{headers:{"Cache-Control":"no-store"}});
+  return Response.json({status:"PARTIAL",source:"Solana RPC mit automatischem Failover",rpcProvider:rpc.providerLabel(),rpcBudget:rpc.budget(),checkedAt:new Date().toISOString(),walletsChecked:wallets.length,ranked:[...ranked,...results.filter(x=>x.score===null)],note:"Maximal 10 der letzten 20 Signaturen je Wallet, damit bei mehreren Wallets das Cloudflare-Subrequest-Budget nicht ausgeschöpft wird. Transfers und reine Aktivität ohne Swap-Hinweis erzeugen keinen Ranking-Score. DEX-Programm plus Salden ist ein Swap-Hinweis, aber keine vollständige wirtschaftliche Swap-Dekodierung. BUY/SELL bleiben teilweise heuristisch; kein PnL und keine nachgewiesene Smart-Money-Qualität."},{headers:{"Cache-Control":"no-store"}});
  }catch(e){return Response.json({status:"UNAVAILABLE",source:"Solana RPC mit automatischem Failover",rpcProvider:rpc.providerLabel(),error:"Ranking nicht verfügbar",detail:e.message},{status:502});}
 }
