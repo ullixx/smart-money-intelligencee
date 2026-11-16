@@ -22,7 +22,15 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const staticKeys=message.accountKeys||[];
  const loaded=[...(meta.loadedAddresses?.writable||[]),...(meta.loadedAddresses?.readonly||[])];
  const keyAt=i=>keyString(i<staticKeys.length?staticKeys[i]:loaded[i-staticKeys.length]);
- const instructions=[...(message.instructions||[]),...(meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
+ const outerInstructions=message.instructions||[];
+ const innerByIndex=new Map((meta.innerInstructions||[]).map(group=>[group.index,group.instructions||[]]));
+ const instructions=[];
+ outerInstructions.forEach((instruction,index)=>{
+  instructions.push(instruction);
+  instructions.push(...(innerByIndex.get(index)||[]));
+ });
+ // Preserve any non-standard inner groups whose parent index is absent.
+ for(const group of meta.innerInstructions||[])if(!Number.isInteger(group.index)||group.index<0||group.index>=outerInstructions.length)instructions.push(...(group.instructions||[]));
  const programIds=[...new Set(instructions.map(ix=>ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null)).filter(x=>typeof x==="string"))];
  const dexPrograms=[...new Set(programIds.filter(id=>Object.hasOwn(DEX_IDS,id)).map(id=>DEX_IDS[id]))];
  const dexInstructionTrace=instructions.map((ix,index)=>{const programId=ix.programId||(Number.isInteger(ix.programIdIndex)?keyAt(ix.programIdIndex):null);return {index,programId,dexName:DEX_IDS[programId]||null,parsedType:ix.parsed?.type||null,accounts:ix.accounts||[],data:ix.data||null,stackHeight:ix.stackHeight??null};}).filter(x=>x.dexName);
