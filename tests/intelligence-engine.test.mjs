@@ -43,3 +43,15 @@ test("does not infer BUY or SELL from token movements without decoded DEX eviden
  assert.equal(result.capitalFlows[0].valuationStatus,"UNAVAILABLE");
  assert.equal(result.capitalFlows[0].usdValue,null);
 });
+
+
+test("C discovers direct SOL transfer counterparties, not only fee payers",()=>{
+ const peer="Waaet33333333333333333333333333333333333";
+ const transfer={blockTime:3,transaction:{message:{accountKeys:[A],instructions:[
+  {programId:"11111111111111111111111111111111",parsed:{type:"transfer",info:{source:A,destination:peer,lamports:250000000}}}
+ ]}},meta:{fee:5000,innerInstructions:[],preTokenBalances:[],postTokenBalances:[]}};
+ const result=analyseIntelligence({wallets:[A],transactionsByWallet:{[A]:[transfer]}});
+ assert.equal(result.walletDiscovery[0].address,peer);
+ assert.equal(result.walletDiscovery[0].discoveryReason,"Gegenpartei eines beobachteten SOL-Transfers");
+ assert.equal(result.walletRanking[0].counterparties.includes(peer),true);
+});
