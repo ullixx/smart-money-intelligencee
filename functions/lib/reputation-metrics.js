@@ -127,7 +127,8 @@ export function rankPerformanceProfiles(profiles = [], { minClosedTrades = 10, m
     const summary = profile?.summary || {};
     const closedTrades = Number(summary.closedTrades || 0);
     const priceCoverage = Number(profile?.coverage);
-    const pnl = Number(summary.estimatedRealizedPnlUsd);
+    const hasPnl = summary.estimatedRealizedPnlUsd !== null && summary.estimatedRealizedPnlUsd !== undefined && summary.estimatedRealizedPnlUsd !== "";
+    const pnl = hasPnl ? Number(summary.estimatedRealizedPnlUsd) : NaN;
     const eligible = Number.isFinite(pnl) && closedTrades >= minClosedTrades &&
       Number.isFinite(priceCoverage) && priceCoverage >= minPriceCoverage;
     return { ...profile, eligible, closedTrades, priceCoverage: Number.isFinite(priceCoverage) ? priceCoverage : null };
