@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { onRequestGet } from "../functions/api/performance.js";
 
-const WALLET = "Wallet1111111111111111111111111111111111";
+const WALLET = "11111111111111111111111111111111";
 
 test("performance endpoint exposes per-transaction RPC batch failures", async () => {
   const originalFetch = globalThis.fetch;
