@@ -33,3 +33,13 @@ test("discovers fee payers and SOL transfer counterparties as unconfirmed candid
  assert.equal(candidates[0].status,"CANDIDATE");
  assert.match(candidates[0].warning,/Nicht als Smart Money bestätigt/);
 });
+
+
+test("does not infer BUY or SELL from token movements without decoded DEX evidence",()=>{
+ const result=analyseIntelligence({wallets:[A],transactionsByWallet:{[A]:[tx({pre:"0",post:"5"})]}});
+ assert.equal(result.walletRanking[0].observedBuys,0);
+ assert.equal(result.walletRanking[0].observedSells,0);
+ assert.equal(result.walletRanking[0].confirmedDexSwaps,0);
+ assert.equal(result.capitalFlows[0].valuationStatus,"UNAVAILABLE");
+ assert.equal(result.capitalFlows[0].usdValue,null);
+});
