@@ -10,6 +10,9 @@ test("applies baseline security headers to static asset responses", async () => 
   assert.equal(response.headers.get("X-Frame-Options"), "DENY");
   assert.match(response.headers.get("Content-Security-Policy") || "", /default-src 'self'/);
   assert.match(response.headers.get("Content-Security-Policy") || "", /frame-ancestors 'none'/);
+  assert.match(response.headers.get("Content-Security-Policy") || "", /script-src 'self' 'nonce-[a-f0-9]{36}'/);
+  assert.match(await response.text(), /<script nonce="[a-f0-9]{36}">/);
+  assert.doesNotMatch(response.headers.get("Content-Security-Policy") || "", /script-src[^;]*unsafe-inline/);
 });
 
 test("applies security headers to API method errors", async () => {

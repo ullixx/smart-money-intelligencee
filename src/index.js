@@ -27,7 +27,7 @@ const routes = {
 };
 
 const SECURITY_HEADERS = {
-  "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; upgrade-insecure-requests",
+  "Content-Security-Policy": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; upgrade-insecure-requests",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -35,10 +35,23 @@ const SECURITY_HEADERS = {
   "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
 };
 
-function secureResponse(response) {
+async function secureResponse(response) {
   const headers = new Headers(response.headers);
-  for (const [name, value] of Object.entries(SECURITY_HEADERS)) headers.set(name, value);
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  let body = response.body;
+  const contentType = headers.get("Content-Type") || "";
+  let nonce = null;
+  if (contentType.toLowerCase().includes("text/html")) {
+    const bytes = new Uint8Array(18);
+    crypto.getRandomValues(bytes);
+    nonce = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    body = (await response.text()).replace(/<script(?=[\\s>])/gi, '<script nonce="' + nonce + '"');
+  }
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    headers.set(name, name === "Content-Security-Policy" && nonce
+      ? value.replace("script-src 'self'", "script-src 'self' 'nonce-" + nonce + "'")
+      : value);
+  }
+  return new Response(body, { status: response.status, statusText: response.statusText, headers });
 }
 
 export default {
