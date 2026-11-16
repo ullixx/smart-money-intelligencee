@@ -146,7 +146,7 @@ async function inspectIntelligence(){
   const table=(heads,rows)=>rows.length?'<div class="tablewrap"><table><thead><tr>'+heads.map(x=>'<th>'+x+'</th>').join("")+'</tr></thead><tbody>'+rows.join("")+'</tbody></table></div>':'<p class="muted">Keine belastbaren Ergebnisse im geprüften Fenster.</p>';
   out.innerHTML='<p><b style="color:var(--amber)">'+esc(d.status)+'</b> · '+(d.coverage?.walletsAnalysed||0)+' Wallets · '+(d.coverage?.transactionsAnalysed||0)+' Transaktionen · '+esc(d.rpcProvider||"RPC")+' · '+esc(d.generatedAt||"")+'</p>'+
   '<h3 style="font-size:14px">C · Wallet Discovery & Ranking</h3>'+table(["Rang","Wallet","Aktivität","BUY / SELL","Token","SOL rein / raus","Daten"],wallets.map(w=>'<tr><td>'+w.rank+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(w.address)+'">'+esc(w.address.slice(0,7)+"…"+w.address.slice(-5))+'</a></td><td>'+w.activityScore+'/100</td><td>'+w.observedBuys+' / '+w.observedSells+'</td><td>'+w.distinctTokens+'</td><td>'+fmt(w.solIn)+' / '+fmt(w.solOut)+'</td><td>'+w.status+'</td></tr>'))+
-  '<p class="muted" style="font-size:11px">Aktivitätsscore ist kein Gewinn- oder Smart-Money-Score.</p><b>Neue Wallet-Kandidaten</b>'+table(["Adresse","Erwähnungen","Grund","Status"],candidates.map(w=>'<tr><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(w.address)+'">'+esc(w.address.slice(0,8)+"…"+w.address.slice(-5))+'</a></td><td>'+w.mentions+'</td><td>'+esc(w.discoveryReason)+'</td><td>'+w.status+'</td></tr>'))+
+  '<p class="muted" style="font-size:11px">Aktivitätsscore ist kein Gewinn- oder Smart-Money-Score.</p><b>Neue Wallet-Kandidaten</b>'+table(["Adresse","Erwähnungen","Grund","Status"],candidates.map(w=>'<tr><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(w.address)+'">'+esc(w.address.slice(0,8)+"…"+w.address.slice(-5))+'</a></td><td>'+w.mentions+'</td><td>'+esc(w.discoveryReason)+'</td><td>'+w.status+' <button type="button" data-add-wallet="'+esc(w.address)+'" style="padding:5px 7px;font-size:10px;background:#263a56;color:var(--text)">Übernehmen</button></td></tr>'))+
   '<h3 style="font-size:14px;margin-top:18px">D · Cluster Intelligence</h3><b>Direkte Transferbeziehungen</b>'+table(["Von","Zu","Belege"],(clusters.directTransfers||[]).map(e=>'<tr><td>'+esc(e.from.slice(0,7)+"…")+'</td><td>'+esc(e.to.slice(0,7)+"…")+'</td><td>'+e.transfers+'</td></tr>'))+'<b>Gemeinsame Token-Exposition</b>'+table(["Mint","Wallets","Hinweis"],(clusters.sharedTokenExposure||[]).map(e=>'<tr><td><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(e.mint)+'">'+esc(e.mint.slice(0,8)+"…"+e.mint.slice(-5))+'</a></td><td>'+e.walletCount+'</td><td>'+esc(e.evidence)+'</td></tr>'))+
   '<h3 style="font-size:14px;margin-top:18px">E · Capital Flow Engine</h3>'+table(["Token Mint","Wallets","Netto-Menge","Zufluss","Abfluss","Richtung"],flows.map(f=>'<tr><td>'+esc(f.mint.slice(0,8)+"…"+f.mint.slice(-5))+'</td><td>'+f.walletCount+'</td><td>'+fmt(f.netUnits)+'</td><td>'+fmt(f.inflowUnits)+'</td><td>'+fmt(f.outflowUnits)+'</td><td>'+esc(f.direction)+'</td></tr>'))+
   '<h3 style="font-size:14px;margin-top:18px">F · Intelligence & Risk Engine</h3>'+table(["Wallet","Risiko","Signale"],risks.map(w=>'<tr><td>'+esc(w.address.slice(0,7)+"…"+w.address.slice(-5))+'</td><td>'+esc(w.riskLevel)+'</td><td>'+escList(w.riskFlags)+'</td></tr>'))+
@@ -154,6 +154,13 @@ async function inspectIntelligence(){
  }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
 }
 document.getElementById("intelligenceButton").addEventListener("click",inspectIntelligence);
+document.getElementById("intelligenceResult").addEventListener("click",e=>{
+ const button=e.target.closest("[data-add-wallet]");if(!button)return;
+ const address=button.dataset.addWallet,list=getWallets();
+ if(!list.includes(address)){list.push(address);localStorage.setItem(KEY,JSON.stringify(list));renderWatchlist();}
+ button.textContent="Gespeichert";button.disabled=true;
+});
+
 
 async function inspectPerformance(){
  const list=getWallets(),out=document.getElementById("performanceResult");
