@@ -1,5 +1,9 @@
 import { createSolanaRpc } from "../lib/solana-rpc.js";
 import { analyseIntelligence, discoverWalletCandidates } from "../lib/intelligence-engine.js";
+import { selectPriceResolution } from "../lib/price-resolution.js";
+import { valueCapitalFlow } from "../lib/capital-flow-valuation.js";
+const GT="https://api.geckoterminal.com/api/v2";
+const GT_HEADERS={"accept":"application/json;version=20230203"};
 const validAddress=value=>/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value);
 export async function onRequestGet({request,env}){
  const url=new URL(request.url);
@@ -24,7 +28,32 @@ export async function onRequestGet({request,env}){
   const allWallets=[...seeds,...expandedAddresses];
   const transactionsByWallet={...first.byWallet,...second.byWallet};
   const analysis=analyseIntelligence({wallets:allWallets,transactionsByWallet});
-  return Response.json({...analysis,walletDiscovery:discovered,seedWallets:seeds,expandedWallets:expandedAddresses,coverage:{...analysis.coverage,seedWallets:seeds.length,discoveredWallets:expandedAddresses.length,transactionsAnalysed:analysis.coverage.transactionsAnalysed,window:"Bis zu 5 jüngste Transaktionen je Seed- und Kandidaten-Wallet"},source:"Solana RPC · getSignaturesForAddress + getTransaction",rpcProvider:rpc.providerLabel(),rpcBudget:rpc.budget(),requestedSignatures:first.requested+second.requested},{headers:{"Cache-Control":"no-store"}});
+  const valuedFlows=await Promise.all(analysis.capitalFlows.slice(0,5).map(async flow=>{
+   try{
+    const pairsResponse=await fetch("https://api.dexscreener.com/token-pairs/v1/solana/"+flow.mint);
+    if(!pairsResponse.ok)throw new Error("DEX-Pool nicht abrufbar");
+    const pairs=await pairsResponse.json();
+    const pool=(Array.isArray(pairs)?pairs:[]).filter(p=>(p.baseToken?.address===flow.mint||p.quoteToken?.address===flow.mint)&&p.pairAddress).sort((a,b)=>(b.liquidity?.usd||0)-(a.liquidity?.usd||0))[0];
+    if(!pool)throw new Error("Kein passender Pool gefunden");
+    const resolution=selectPriceResolution(flow.eventDetails||[]);
+    const interval=resolution.timeframe==="minute"?60:3600;
+    const end=Math.max(...(flow.eventDetails||[]).map(e=>e.time));
+    if(!Number.isFinite(end))throw new Error("Keine verwertbaren Zeitstempel");
+    const before=Math.floor(end/interval)*interval+interval;
+    const token=pool.baseToken?.address===flow.mint?"base":"quote";
+    const url=GT+"/networks/solana/pools/"+pool.pairAddress+"/ohlcv/"+resolution.timeframe+"?aggregate="+resolution.aggregate+"&limit=1000&before_timestamp="+before+"&currency=usd&token="+token;
+    const response=await fetch(url,{headers:GT_HEADERS});
+    if(!response.ok)throw new Error("Historische Kerzen nicht abrufbar");
+    const payload=await response.json();
+    const candles=(payload?.data?.attributes?.ohlcv_list||[]).map(x=>({time:x[0],close:Number(x[4])}));
+    const valuation=valueCapitalFlow(flow,candles,resolution.toleranceSeconds);
+    return {...flow,...valuation,valuationNote:valuation.valuationMethod+". Der aktuell liquideste Pool muss nicht der tatsächlich genutzte historische Ausführungspool sein.",poolAddress:pool.pairAddress,poolUrl:pool.url,priceResolution:resolution.method,valuationSource:"GeckoTerminal OHLCV + DEX Screener",valuedAt:new Date().toISOString()};
+   }catch(error){return {...flow,usdValue:null,usdInflow:null,usdOutflow:null,valuationStatus:"UNAVAILABLE",valuationNote:"Historische USD-Bewertung nicht verfügbar: "+error.message};}
+  }));
+  const remainingFlows=analysis.capitalFlows.slice(5).map(flow=>({...flow,usdValue:null,valuationStatus:"UNAVAILABLE",valuationNote:"Außerhalb des aktuellen Bewertungsbudgets (Top 5 Kapitalflüsse)."}));
+  const capitalFlows=[...valuedFlows,...remainingFlows];
+  const capitalFlowStatus=capitalFlows.some(x=>x.valuationStatus==="HISTORICAL")?"HISTORICAL":capitalFlows.some(x=>x.valuationStatus==="PARTIAL")?"PARTIAL":"UNAVAILABLE";
+  return Response.json({...analysis,capitalFlows,dataStatus:{...analysis.dataStatus,capitalFlows:capitalFlowStatus},walletDiscovery:discovered,seedWallets:seeds,expandedWallets:expandedAddresses,coverage:{...analysis.coverage,seedWallets:seeds.length,discoveredWallets:expandedAddresses.length,transactionsAnalysed:analysis.coverage.transactionsAnalysed,window:"Bis zu 5 jüngste Transaktionen je Seed- und Kandidaten-Wallet"},source:"Solana RPC · DEX Screener · GeckoTerminal historische Kerzen",rpcProvider:rpc.providerLabel(),rpcBudget:rpc.budget(),requestedSignatures:first.requested+second.requested},{headers:{"Cache-Control":"no-store"}});
  }catch(error){
   return Response.json({status:"UNAVAILABLE",source:"Solana RPC",rpcProvider:rpc.providerLabel(),rpcBudget:rpc.budget(),error:"C–F Analyse konnte nicht vollständig geladen werden",detail:String(error?.message||error)},{status:502,headers:{"Cache-Control":"no-store"}});
  }
