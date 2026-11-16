@@ -226,7 +226,225 @@ async function inspectPerformance(before=null){
   performancePages.push(d);const merged=mergePerformancePages(performancePages);const s=merged.summary||{},pct=s.tokenLevelPositiveShare==null?"—":(s.tokenLevelPositiveShare*100).toFixed(1)+"%";
   performancePage++;performanceNextCursor=d.historyPagination?.nextBefore||null;
   out.innerHTML='<p><b style="color:var(--amber)">'+d.status+'</b> · Historienseite '+performancePage+' · '+esc(d.source)+' · '+merged.events+' Bewegungen insgesamt · Abdeckung '+(d.coverage??'—')+'% · übersprungen '+(d.skippedTransactions??0)+' · nicht klassifiziert '+(d.unclassifiedTransactions??0)+'</p><div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0"><div class="metric"><small>Token geprüft</small><strong>'+s.tokens+'</strong></div><div class="metric"><small>Historisch bepreist</small><strong>'+s.pricedEvents+'</strong></div><div class="metric"><small>Unbepreist</small><strong>'+s.unpricedEvents+'</strong></div><div class="metric"><small>Positive Token-PnL</small><strong>'+pct+'</strong></div></div>'+
-  (merged.tokenResults?.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>BUYs</th><th>SELLs</th><th>Geschlossene Menge</th><th>Geschätzter FIFO-PnL</th><th>Offene FIFO-Lots</th><th>Nicht zugeordnet</th><th>Kursquelle</th></tr></thead><tbody>'+merged.tokenResults.map(t=>'<tr><td>'+esc(t.mint.slice(0,7)+"…"+t.mint.slice(-6))+(t.poolUrl?'<br><a target="_blank" rel="noopener" href="'+esc(t.poolUrl)+'">Pool ↗</a>':"")+'</td><td>'+t.buys+'</td><td>'+t.sells+'</td><td>'+fmt(t.matchedTokenAmount)+'</td><td>'+(t.estimatedRealizedPnlUsd==null?"—":(t.estimatedRealizedPnlUsd>=0?"+":"")+"$"+fmt(t.estimatedRealizedPnlUsd))+'</td><td>'+t.openLots+'</td><td>'+t.unmatchedEvents+'</td><td>'+esc(t.priceSource)+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Token-Bewegungen gefunden.')+'<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>'+(performanceNextCursor?'<button type="button" id="performanceNextPageButton" style="margin-top:10px;background:#263a56;color:var(--text)">Ältere Transaktionen laden</button>':'<p class="muted" style="font-size:11px">Keine weitere Seite vom RPC gemeldet.</p>');
+  (merged.tokenResults?.length?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>BUYs</th><th>SELLs</th><th>Geschlossene Menge</th><th>Geschätzter FIFO-PnL</th><th>Profit Factor</th><th>Ø Gewinn</th><th>Ø Verlust</th><th>Offene FIFO-Lots</th><th>Nicht zugeordnet</th><th>Kursquelle</th></tr></thead><tbody>'+merged.tokenResults.map(t=>'<tr><td>'+esc(t.mint.slice(0,7)+"…"+t.mint.slice(-6))+(t.poolUrl?'<br><a target="_blank" rel="noopener" href="'+esc(t.poolUrl)+'">Pool ↗</a>':"")+'</td><td>'+t.buys+'</td><td>'+t.sells+'</td><td>'+fmt(t.matchedTokenAmount)+'</td><td>'+(t.estimatedRealizedPnlUsd==null?"—":(t.estimatedRealizedPnlUsd>=0?"+":"")+"$"+fmt(t.estimatedRealizedPnlUsd))+'</td><td>'+(t.profitFactor===null||t.profitFactor===undefined?'—':t.profitFactor==='INFINITE'?'∞':fmt(t.profitFactor))+'</td><td>'+(t.averageWinUsd==null?'—':'+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Token-Bewegungen gefunden.')+'<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>'+(performanceNextCursor?'<button type="button" id="performanceNextPageButton" style="margin-top:10px;background:#263a56;color:var(--text)">Ältere Transaktionen laden</button>':'<p class="muted" style="font-size:11px">Keine weitere Seite vom RPC gemeldet.</p>');
+  const nextButton=document.getElementById("performanceNextPageButton");if(nextButton)nextButton.addEventListener("click",()=>inspectPerformance(performanceNextCursor));
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("performanceButton").addEventListener("click",()=>inspectPerformance());
+async function inspectNetwork(){
+ const list=getWallets().slice(0,5),out=document.getElementById("networkResult");
+ if(list.length<2){out.textContent="Bitte mindestens zwei Wallets speichern.";return;}
+ out.textContent="Vergleiche Wallet-Cluster, Funding-Quellen und Token-Überschneidungen …";
+ try{
+  const r=await fetch("/api/network?wallets="+encodeURIComponent(list.join(",")),{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Netzwerkanalyse fehlgeschlagen");
+  const clusters=d.clusters||[],shared=d.sharedTokens||[],funders=d.sharedFunders||[];
+  const short=a=>esc(a.slice(0,7)+"…"+a.slice(-6));
+  out.innerHTML='<p><b style="color:var(--amber)">'+esc(d.status)+'</b> · '+d.walletsChecked+' Wallets · '+(d.transactionsAnalysed??0)+' / '+(d.transactionsRequested??0)+' Transaktionen · Abdeckung '+(d.coverage??"—")+'% · übersprungen '+(d.skippedTransactions??0)+'</p>'+
+   '<h3 style="font-size:14px">Wallet-Cluster · zeitliche Überschneidungen</h3>'+
+   (clusters.length?'<div class="tablewrap"><table><thead><tr><th>Evidenz</th><th>Token</th><th>Wallets</th><th>Zeitfenster</th><th>Bewertung</th></tr></thead><tbody>'+clusters.map(c=>'<tr><td><b>'+c.evidenceScore+'/100</b><br><span class="muted">'+esc(c.evidenceLevel)+'</span></td><td>'+short(c.mint)+'<br><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(c.mint)+'">Solscan ↗</a></td><td>'+c.walletCount+'<br><span class="muted">'+c.wallets.map(short).join(", ")+'</span></td><td>'+new Date(c.firstSeen).toLocaleString("de-DE")+'<br><span class="muted">'+c.windowMinutes+' Min. · '+c.buyCandidateCount+' Kaufkandidaten</span></td><td>'+esc(c.interpretation)+'</td></tr>').join("")+'</tbody></table></div>':'Keine gemeinsamen zeitlichen Token-Muster im Stichprobenfenster gefunden.')+
+   '<h3 style="font-size:14px;margin-top:18px">Gemeinsame Funding-Absender</h3>'+
+   (funders.length?'<div class="tablewrap"><table><thead><tr><th>Absender</th><th>Empfänger-Wallets</th><th>Transfers</th><th>SOL gesamt</th></tr></thead><tbody>'+funders.map(f=>'<tr><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(f.funder)+'">'+short(f.funder)+' ↗</a></td><td>'+f.walletCount+'<br><span class="muted">'+f.wallets.map(short).join(", ")+'</span></td><td>'+f.transfers+'</td><td>'+fmt(f.totalSol)+'</td></tr>').join("")+'</tbody></table></div>':'Kein gemeinsamer eingehender System-Transfer-Absender in den geprüften Transaktionen erkannt.')+
+   '<h3 style="font-size:14px;margin-top:18px">Gemeinsam berührte Token</h3>'+
+   (shared.length?shared.map(x=>'<div style="padding:8px 0;border-top:1px solid var(--line)">'+x.walletCount+' Wallets · '+short(x.mint)+' · '+x.buyCandidates+' Kaufkandidaten · <a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(x.mint)+'">öffnen</a></div>').join(""):'Keine gemeinsamen Token in den geprüften Daten.')+
+   '<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("networkButton").addEventListener("click",inspectNetwork);
+
+async function inspectRanking(){
+ const list=getWallets().slice(0,10),out=document.getElementById("rankingResult");
+ if(!list.length){out.textContent="Bitte zuerst Wallets speichern.";return;}
+ out.textContent="Analysiere bis zu 15 aktuelle Transaktionen je Wallet …";
+ try{
+  const r=await fetch("/api/ranking?wallets="+encodeURIComponent(list.join(",")),{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"Ranking fehlgeschlagen");
+  const rows=d.ranked||[];
+  out.innerHTML='<p><b style="color:var(--amber)">'+esc(d.status)+'</b> · '+d.walletsChecked+' Wallets · '+esc(d.source)+'</p>'+
+   (rows.length?'<div class="tablewrap"><table><thead><tr><th>Rang</th><th>Wallet</th><th>Aktivitätsscore</th><th>BUY / SELL</th><th>Verschiedene BUY-Token</th><th>Wiederholte Token</th><th>Abdeckung</th><th>Status</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+(x.rank??"—")+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(x.address)+'">'+esc(x.address.slice(0,6)+"…"+x.address.slice(-6))+' ↗</a></td><td>'+(x.score==null?"—":'<b>'+x.score+'/100</b>')+'</td><td>'+(x.buys??"—")+' / '+(x.sells??"—")+'</td><td>'+(x.buyMints??"—")+'</td><td>'+(x.repeatedMints??"—")+'</td><td>'+(x.coverage??"—")+'%</td><td>'+esc(x.status)+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Wallets.')+
+   '<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("rankingButton").addEventListener("click",inspectRanking);
+
+
+async function inspectFomo(){
+ const out=document.getElementById("fomoResult");out.textContent="Lade Marktimpuls …";
+ try{
+  const r=await fetch("/api/fomo",{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"FOMO Fusion fehlgeschlagen");
+  const tokens=d.tokens||[];
+  let rows="";
+  for(const t of tokens.slice(0,15)){
+   const name=esc(t.name||t.symbol||t.address.slice(0,8));
+   const pressure=t.buyPressure==null?"—":(t.buyPressure*100).toFixed(1)+"%";
+   const ratio=t.volumeLiquidity==null?"—":t.volumeLiquidity.toFixed(2)+"x";
+   rows+="<tr><td>"+name+"</td><td>"+(t.score??"—")+"/100</td><td>"+pressure+"</td><td>"+ratio+"</td><td>$"+fmt(t.liquidityUsd)+"</td><td>"+t.buys24h+" / "+t.sells24h+"</td><td><a target='_blank' rel='noopener' href='"+esc(t.url||("https://solscan.io/token/"+t.address))+"'>öffnen</a></td></tr>";
+  }
+  out.innerHTML="<p><b>"+esc(d.status)+"</b> · DEX Screener · Social: <b style='color:var(--red)'>UNAVAILABLE</b></p>"+
+   (rows?"<div class='tablewrap'><table><thead><tr><th>Token</th><th>Market Pulse</th><th>Buy-Anteil</th><th>Volumen/Liquidität</th><th>Liquidität</th><th>BUY/SELL</th><th>Explorer</th></tr></thead><tbody>"+rows+"</tbody></table></div>":"Keine Marktpaare verfügbar.")+
+   "<p class='muted' style='font-size:11px'>"+esc(d.method||"")+"<br>"+esc(d.note||"")+"<br>"+esc(d.social?.note||"")+"</p>";
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("fomoButton").addEventListener("click",inspectFomo);
+
+async function inspectEntry(address){
+ const out=document.getElementById("entryResult");out.textContent="Prüfe Marktbedingungen und Mint-Sicherheit …";
+ try{
+  const r=await fetch("/api/entry?address="+encodeURIComponent(address),{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"Entry-Prüfung fehlgeschlagen");
+  const m=d.market||{},decision=d.decision||d.status;
+  out.innerHTML="<div class='panel' style='padding:13px'><div class='sectionhead'><b>"+esc(decision)+"</b><span class='tag'>Score "+(d.score??"—")+"/100</span></div>"+
+   "<div class='grid' style='grid-template-columns:repeat(2,minmax(0,1fr))'><div><span class='muted'>Liquidität</span><br>$"+fmt(m.liquidityUsd)+"</div><div><span class='muted'>Volumen 24h</span><br>$"+fmt(m.volume24h)+"</div><div><span class='muted'>Käufe / Verkäufe</span><br>"+(m.buys24h??"—")+" / "+(m.sells24h??"—")+"</div><div><span class='muted'>Kaufanteil</span><br>"+(m.buyPressure==null?"—":(m.buyPressure*100).toFixed(1)+"%")+"</div></div>"+
+   "<p><b>Blockierende Bedingungen</b><br>"+((d.blocks||[]).length?d.blocks.map(esc).join("<br>"):"Keine der definierten Blockbedingungen erkannt.")+"</p>"+
+   "<p><b>Beobachtungen</b><br>"+((d.reasons||[]).length?d.reasons.map(esc).join("<br>"):"Keine zusätzlichen Beobachtungen.")+"</p>"+
+   "<p class='muted' style='font-size:11px'>"+esc(d.method||"")+"<br>"+esc(d.note||"")+"</p></div>";
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("entryForm").addEventListener("submit",e=>{e.preventDefault();const a=document.getElementById("entryAddress").value.trim();if(a)inspectEntry(a);});
+
+
+document.querySelectorAll("[data-paste]").forEach(button=>{
+ button.addEventListener("click",async()=>{
+  const input=document.getElementById(button.dataset.paste);
+  try{
+   if(!navigator.clipboard?.readText)throw new Error("Zwischenablage-Zugriff wird von diesem Browser nicht unterstützt.");
+   const value=(await navigator.clipboard.readText()).trim();
+   if(!value)throw new Error("Die Zwischenablage ist leer.");
+   input.value=value;
+   input.dispatchEvent(new Event("input",{bubbles:true}));
+   input.focus();
+   button.textContent="Eingefügt";
+   setTimeout(()=>button.textContent="Einfügen",1600);
+  }catch(error){
+   const message=error.name==="NotAllowedError"?"Zugriff verweigert. Bitte Einfügen über langes Drücken im Feld nutzen.":error.message;
+   const status=input.closest("form").querySelector("[data-paste-status]")||document.createElement("span");
+   status.dataset.pasteStatus="true";status.className="muted";status.setAttribute("role","status");status.textContent=message;
+   if(!status.parentNode)input.closest("form").appendChild(status);
+  }
+ });
+});
+document.getElementById("walletForm").addEventListener("submit",event=>{
+ event.preventDefault();
+ const address=document.getElementById("walletAddress").value.trim();
+ if(!address)return;
+ setActiveView("wallets");
+ inspectWallet(address);
+});
+function setActiveView(view){document.querySelectorAll("section[data-view]").forEach(section=>{section.hidden=section.dataset.view!==view;});document.querySelectorAll(".navtab").forEach(tab=>{const active=tab.dataset.target===view;tab.classList.toggle("active",active);tab.setAttribute("aria-current",active?"page":"false");});}
+document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
+setActiveView("discovery");
+loadDiscovery();
+renderWatchlist();
+</script></body></html>+fmt(t.averageWinUsd))+'</td><td>'+(t.averageLossUsd==null?'—':'+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Token-Bewegungen gefunden.')+'<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>'+(performanceNextCursor?'<button type="button" id="performanceNextPageButton" style="margin-top:10px;background:#263a56;color:var(--text)">Ältere Transaktionen laden</button>':'<p class="muted" style="font-size:11px">Keine weitere Seite vom RPC gemeldet.</p>');
+  const nextButton=document.getElementById("performanceNextPageButton");if(nextButton)nextButton.addEventListener("click",()=>inspectPerformance(performanceNextCursor));
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("performanceButton").addEventListener("click",()=>inspectPerformance());
+async function inspectNetwork(){
+ const list=getWallets().slice(0,5),out=document.getElementById("networkResult");
+ if(list.length<2){out.textContent="Bitte mindestens zwei Wallets speichern.";return;}
+ out.textContent="Vergleiche Wallet-Cluster, Funding-Quellen und Token-Überschneidungen …";
+ try{
+  const r=await fetch("/api/network?wallets="+encodeURIComponent(list.join(",")),{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error||"Netzwerkanalyse fehlgeschlagen");
+  const clusters=d.clusters||[],shared=d.sharedTokens||[],funders=d.sharedFunders||[];
+  const short=a=>esc(a.slice(0,7)+"…"+a.slice(-6));
+  out.innerHTML='<p><b style="color:var(--amber)">'+esc(d.status)+'</b> · '+d.walletsChecked+' Wallets · '+(d.transactionsAnalysed??0)+' / '+(d.transactionsRequested??0)+' Transaktionen · Abdeckung '+(d.coverage??"—")+'% · übersprungen '+(d.skippedTransactions??0)+'</p>'+
+   '<h3 style="font-size:14px">Wallet-Cluster · zeitliche Überschneidungen</h3>'+
+   (clusters.length?'<div class="tablewrap"><table><thead><tr><th>Evidenz</th><th>Token</th><th>Wallets</th><th>Zeitfenster</th><th>Bewertung</th></tr></thead><tbody>'+clusters.map(c=>'<tr><td><b>'+c.evidenceScore+'/100</b><br><span class="muted">'+esc(c.evidenceLevel)+'</span></td><td>'+short(c.mint)+'<br><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(c.mint)+'">Solscan ↗</a></td><td>'+c.walletCount+'<br><span class="muted">'+c.wallets.map(short).join(", ")+'</span></td><td>'+new Date(c.firstSeen).toLocaleString("de-DE")+'<br><span class="muted">'+c.windowMinutes+' Min. · '+c.buyCandidateCount+' Kaufkandidaten</span></td><td>'+esc(c.interpretation)+'</td></tr>').join("")+'</tbody></table></div>':'Keine gemeinsamen zeitlichen Token-Muster im Stichprobenfenster gefunden.')+
+   '<h3 style="font-size:14px;margin-top:18px">Gemeinsame Funding-Absender</h3>'+
+   (funders.length?'<div class="tablewrap"><table><thead><tr><th>Absender</th><th>Empfänger-Wallets</th><th>Transfers</th><th>SOL gesamt</th></tr></thead><tbody>'+funders.map(f=>'<tr><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(f.funder)+'">'+short(f.funder)+' ↗</a></td><td>'+f.walletCount+'<br><span class="muted">'+f.wallets.map(short).join(", ")+'</span></td><td>'+f.transfers+'</td><td>'+fmt(f.totalSol)+'</td></tr>').join("")+'</tbody></table></div>':'Kein gemeinsamer eingehender System-Transfer-Absender in den geprüften Transaktionen erkannt.')+
+   '<h3 style="font-size:14px;margin-top:18px">Gemeinsam berührte Token</h3>'+
+   (shared.length?shared.map(x=>'<div style="padding:8px 0;border-top:1px solid var(--line)">'+x.walletCount+' Wallets · '+short(x.mint)+' · '+x.buyCandidates+' Kaufkandidaten · <a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(x.mint)+'">öffnen</a></div>').join(""):'Keine gemeinsamen Token in den geprüften Daten.')+
+   '<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("networkButton").addEventListener("click",inspectNetwork);
+
+async function inspectRanking(){
+ const list=getWallets().slice(0,10),out=document.getElementById("rankingResult");
+ if(!list.length){out.textContent="Bitte zuerst Wallets speichern.";return;}
+ out.textContent="Analysiere bis zu 15 aktuelle Transaktionen je Wallet …";
+ try{
+  const r=await fetch("/api/ranking?wallets="+encodeURIComponent(list.join(",")),{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"Ranking fehlgeschlagen");
+  const rows=d.ranked||[];
+  out.innerHTML='<p><b style="color:var(--amber)">'+esc(d.status)+'</b> · '+d.walletsChecked+' Wallets · '+esc(d.source)+'</p>'+
+   (rows.length?'<div class="tablewrap"><table><thead><tr><th>Rang</th><th>Wallet</th><th>Aktivitätsscore</th><th>BUY / SELL</th><th>Verschiedene BUY-Token</th><th>Wiederholte Token</th><th>Abdeckung</th><th>Status</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+(x.rank??"—")+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(x.address)+'">'+esc(x.address.slice(0,6)+"…"+x.address.slice(-6))+' ↗</a></td><td>'+(x.score==null?"—":'<b>'+x.score+'/100</b>')+'</td><td>'+(x.buys??"—")+' / '+(x.sells??"—")+'</td><td>'+(x.buyMints??"—")+'</td><td>'+(x.repeatedMints??"—")+'</td><td>'+(x.coverage??"—")+'%</td><td>'+esc(x.status)+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Wallets.')+
+   '<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>';
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("rankingButton").addEventListener("click",inspectRanking);
+
+
+async function inspectFomo(){
+ const out=document.getElementById("fomoResult");out.textContent="Lade Marktimpuls …";
+ try{
+  const r=await fetch("/api/fomo",{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"FOMO Fusion fehlgeschlagen");
+  const tokens=d.tokens||[];
+  let rows="";
+  for(const t of tokens.slice(0,15)){
+   const name=esc(t.name||t.symbol||t.address.slice(0,8));
+   const pressure=t.buyPressure==null?"—":(t.buyPressure*100).toFixed(1)+"%";
+   const ratio=t.volumeLiquidity==null?"—":t.volumeLiquidity.toFixed(2)+"x";
+   rows+="<tr><td>"+name+"</td><td>"+(t.score??"—")+"/100</td><td>"+pressure+"</td><td>"+ratio+"</td><td>$"+fmt(t.liquidityUsd)+"</td><td>"+t.buys24h+" / "+t.sells24h+"</td><td><a target='_blank' rel='noopener' href='"+esc(t.url||("https://solscan.io/token/"+t.address))+"'>öffnen</a></td></tr>";
+  }
+  out.innerHTML="<p><b>"+esc(d.status)+"</b> · DEX Screener · Social: <b style='color:var(--red)'>UNAVAILABLE</b></p>"+
+   (rows?"<div class='tablewrap'><table><thead><tr><th>Token</th><th>Market Pulse</th><th>Buy-Anteil</th><th>Volumen/Liquidität</th><th>Liquidität</th><th>BUY/SELL</th><th>Explorer</th></tr></thead><tbody>"+rows+"</tbody></table></div>":"Keine Marktpaare verfügbar.")+
+   "<p class='muted' style='font-size:11px'>"+esc(d.method||"")+"<br>"+esc(d.note||"")+"<br>"+esc(d.social?.note||"")+"</p>";
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("fomoButton").addEventListener("click",inspectFomo);
+
+async function inspectEntry(address){
+ const out=document.getElementById("entryResult");out.textContent="Prüfe Marktbedingungen und Mint-Sicherheit …";
+ try{
+  const r=await fetch("/api/entry?address="+encodeURIComponent(address),{cache:"no-store"}),d=await r.json();
+  if(!r.ok)throw new Error(d.detail||d.error||"Entry-Prüfung fehlgeschlagen");
+  const m=d.market||{},decision=d.decision||d.status;
+  out.innerHTML="<div class='panel' style='padding:13px'><div class='sectionhead'><b>"+esc(decision)+"</b><span class='tag'>Score "+(d.score??"—")+"/100</span></div>"+
+   "<div class='grid' style='grid-template-columns:repeat(2,minmax(0,1fr))'><div><span class='muted'>Liquidität</span><br>$"+fmt(m.liquidityUsd)+"</div><div><span class='muted'>Volumen 24h</span><br>$"+fmt(m.volume24h)+"</div><div><span class='muted'>Käufe / Verkäufe</span><br>"+(m.buys24h??"—")+" / "+(m.sells24h??"—")+"</div><div><span class='muted'>Kaufanteil</span><br>"+(m.buyPressure==null?"—":(m.buyPressure*100).toFixed(1)+"%")+"</div></div>"+
+   "<p><b>Blockierende Bedingungen</b><br>"+((d.blocks||[]).length?d.blocks.map(esc).join("<br>"):"Keine der definierten Blockbedingungen erkannt.")+"</p>"+
+   "<p><b>Beobachtungen</b><br>"+((d.reasons||[]).length?d.reasons.map(esc).join("<br>"):"Keine zusätzlichen Beobachtungen.")+"</p>"+
+   "<p class='muted' style='font-size:11px'>"+esc(d.method||"")+"<br>"+esc(d.note||"")+"</p></div>";
+ }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
+}
+document.getElementById("entryForm").addEventListener("submit",e=>{e.preventDefault();const a=document.getElementById("entryAddress").value.trim();if(a)inspectEntry(a);});
+
+
+document.querySelectorAll("[data-paste]").forEach(button=>{
+ button.addEventListener("click",async()=>{
+  const input=document.getElementById(button.dataset.paste);
+  try{
+   if(!navigator.clipboard?.readText)throw new Error("Zwischenablage-Zugriff wird von diesem Browser nicht unterstützt.");
+   const value=(await navigator.clipboard.readText()).trim();
+   if(!value)throw new Error("Die Zwischenablage ist leer.");
+   input.value=value;
+   input.dispatchEvent(new Event("input",{bubbles:true}));
+   input.focus();
+   button.textContent="Eingefügt";
+   setTimeout(()=>button.textContent="Einfügen",1600);
+  }catch(error){
+   const message=error.name==="NotAllowedError"?"Zugriff verweigert. Bitte Einfügen über langes Drücken im Feld nutzen.":error.message;
+   const status=input.closest("form").querySelector("[data-paste-status]")||document.createElement("span");
+   status.dataset.pasteStatus="true";status.className="muted";status.setAttribute("role","status");status.textContent=message;
+   if(!status.parentNode)input.closest("form").appendChild(status);
+  }
+ });
+});
+document.getElementById("walletForm").addEventListener("submit",event=>{
+ event.preventDefault();
+ const address=document.getElementById("walletAddress").value.trim();
+ if(!address)return;
+ setActiveView("wallets");
+ inspectWallet(address);
+});
+function setActiveView(view){document.querySelectorAll("section[data-view]").forEach(section=>{section.hidden=section.dataset.view!==view;});document.querySelectorAll(".navtab").forEach(tab=>{const active=tab.dataset.target===view;tab.classList.toggle("active",active);tab.setAttribute("aria-current",active?"page":"false");});}
+document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
+setActiveView("discovery");
+loadDiscovery();
+renderWatchlist();
+</script></body></html>+fmt(t.averageLossUsd))+'</td><td>'+t.openLots+'</td><td>'+t.unmatchedEvents+'</td><td>'+esc(t.priceSource)+'</td></tr>').join("")+'</tbody></table></div>':'Keine auswertbaren Token-Bewegungen gefunden.')+'<p class="muted" style="font-size:11px">'+esc(d.note||"")+'</p>'+(performanceNextCursor?'<button type="button" id="performanceNextPageButton" style="margin-top:10px;background:#263a56;color:var(--text)">Ältere Transaktionen laden</button>':'<p class="muted" style="font-size:11px">Keine weitere Seite vom RPC gemeldet.</p>');
   const nextButton=document.getElementById("performanceNextPageButton");if(nextButton)nextButton.addEventListener("click",()=>inspectPerformance(performanceNextCursor));
  }catch(e){out.textContent="UNAVAILABLE · "+e.message;}
 }
