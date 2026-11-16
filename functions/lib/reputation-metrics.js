@@ -22,8 +22,8 @@ export function aggregatePerformancePages(pages = []) {
   for (const [mint, events] of byMint) {
     events.sort((a, b) => a.time - b.time || String(a.signature).localeCompare(String(b.signature)));
     const lots = [];
-    let realized = 0, matchedAmount = 0, winningLots = 0, losingLots = 0, closedLots = 0;
-    let holdingSeconds = 0, unmatchedEvents = 0, grossProfit = 0, grossLoss = 0;
+    let realized = 0, matchedAmount = 0, closedLots = 0, winningTrades = 0, losingTrades = 0;
+    let partialClosedTrades = 0, unmatchedEvents = 0, grossProfit = 0, grossLoss = 0, holdingDays = 0;
 
     for (const event of events) {
       const amount = Number(event.amount);
@@ -33,41 +33,49 @@ export function aggregatePerformancePages(pages = []) {
         if (!Number.isFinite(event.priceUsd)) unmatchedEvents++;
         continue;
       }
-      let remaining = amount;
+
+      let remaining = amount, tradePnl = 0, tradeMatched = 0, tradeComplete = true, tradeHoldingWeighted = 0;
       while (remaining > 1e-12 && lots.length) {
         const lot = lots[0], quantity = Math.min(remaining, lot.amount);
         if (lot.price == null || !Number.isFinite(event.priceUsd)) {
           unmatchedEvents++;
+          tradeComplete = false;
         } else {
           const pnl = (event.priceUsd - lot.price) * quantity;
           realized += pnl;
-          if (pnl > 0) grossProfit += pnl;
-          else if (pnl < 0) grossLoss += Math.abs(pnl);
+          tradePnl += pnl;
           matchedAmount += quantity;
+          tradeMatched += quantity;
           closedLots++;
-          holdingSeconds += Math.max(0, event.time - lot.time);
-          if (pnl > 0) winningLots++;
-          else if (pnl < 0) losingLots++;
+          tradeHoldingWeighted += Math.max(0, event.time - lot.time) * quantity;
         }
         remaining -= quantity;
         lot.amount -= quantity;
         if (lot.amount <= 1e-12) lots.shift();
       }
-      if (remaining > 1e-12) unmatchedEvents++;
+      if (remaining > 1e-12) { unmatchedEvents++; tradeComplete = false; }
+      if (tradeMatched > 0) {
+        if (tradeComplete) {
+          if (tradePnl > 0) { winningTrades++; grossProfit += tradePnl; }
+          else if (tradePnl < 0) { losingTrades++; grossLoss += Math.abs(tradePnl); }
+          holdingDays += (tradeHoldingWeighted / tradeMatched) / 86400;
+        } else partialClosedTrades++;
+      }
     }
 
+    const closedTrades = winningTrades + losingTrades;
     tokenResults.push({
       mint, buys: events.filter(e => e.side === "BUY").length,
       sells: events.filter(e => e.side === "SELL").length,
       estimatedRealizedPnlUsd: matchedAmount ? round(realized) : null,
       matchedTokenAmount: round(matchedAmount), closedLots,
-      profitableClosedLots: winningLots, losingClosedLots: losingLots,
-      averageWinUsd: winningLots ? round(grossProfit / winningLots) : null,
-      averageLossUsd: losingLots ? round(grossLoss / losingLots) : null,
+      closedTrades, winningTrades, losingTrades, partialClosedTrades,
+      averageWinUsd: winningTrades ? round(grossProfit / winningTrades) : null,
+      averageLossUsd: losingTrades ? round(grossLoss / losingTrades) : null,
       grossProfitUsd: round(grossProfit), grossLossUsd: round(grossLoss),
       profitFactor: grossLoss > 0 ? round(grossProfit / grossLoss) : (grossProfit > 0 ? "INFINITE" : null),
-      winRateClosedLots: closedLots ? winningLots / closedLots : null,
-      averageHoldingDays: closedLots ? holdingSeconds / closedLots / 86400 : null,
+      winRateClosedTrades: closedTrades ? winningTrades / closedTrades : null,
+      averageHoldingDays: closedTrades ? holdingDays / closedTrades : null,
       openLots: lots.length, unmatchedEvents,
       pricedEvents: events.filter(e => Number.isFinite(e.priceUsd)).length,
       totalEvents: events.length,
@@ -77,9 +85,11 @@ export function aggregatePerformancePages(pages = []) {
 
   const closed = tokenResults.filter(x => x.estimatedRealizedPnlUsd !== null);
   const closedLots = tokenResults.reduce((n, x) => n + x.closedLots, 0);
-  const winningLots = tokenResults.reduce((n, x) => n + x.profitableClosedLots, 0);
-  const losingLots = tokenResults.reduce((n, x) => n + x.losingClosedLots, 0);
-  const holdingDays = tokenResults.reduce((n, x) => n + (x.averageHoldingDays || 0) * x.closedLots, 0);
+  const closedTrades = tokenResults.reduce((n, x) => n + x.closedTrades, 0);
+  const winningTrades = tokenResults.reduce((n, x) => n + x.winningTrades, 0);
+  const losingTrades = tokenResults.reduce((n, x) => n + x.losingTrades, 0);
+  const partialClosedTrades = tokenResults.reduce((n, x) => n + x.partialClosedTrades, 0);
+  const holdingDays = tokenResults.reduce((n, x) => n + (x.averageHoldingDays || 0) * x.closedTrades, 0);
   const grossProfit = tokenResults.reduce((n, x) => n + (x.grossProfitUsd || 0), 0);
   const grossLoss = tokenResults.reduce((n, x) => n + (x.grossLossUsd || 0), 0);
   const realizedPnl = tokenResults.reduce((n, x) => n + (x.estimatedRealizedPnlUsd || 0), 0);
@@ -94,15 +104,15 @@ export function aggregatePerformancePages(pages = []) {
       closedTokens: closed.length,
       positiveTokenPnlTokens: closed.filter(x => x.estimatedRealizedPnlUsd > 0).length,
       tokenLevelPositiveShare: closed.length ? closed.filter(x => x.estimatedRealizedPnlUsd > 0).length / closed.length : null,
-      closedFifoLots: closedLots, winningFifoLots: winningLots, losingFifoLots: losingLots,
-      fifoLotWinRate: closedLots ? winningLots / closedLots : null,
+      closedFifoLots: closedLots, closedTrades, winningTrades, losingTrades, partialClosedTrades,
+      fifoLotWinRate: closedTrades ? winningTrades / closedTrades : null,
       estimatedRealizedPnlUsd: closedLots ? round(realizedPnl) : null,
       grossProfitUsd: round(grossProfit), grossLossUsd: round(grossLoss),
       profitFactor: grossLoss > 0 ? round(grossProfit / grossLoss) : (grossProfit > 0 ? "INFINITE" : null),
-      averageWinUsd: winningLots ? round(grossProfit / winningLots) : null,
-      averageLossUsd: losingLots ? round(grossLoss / losingLots) : null,
-      averageHoldingDays: closedLots ? holdingDays / closedLots : null,
-      reputationStatus: closedLots >= 10 ? "PARTIAL" : "INSUFFICIENT_DATA"
+      averageWinUsd: winningTrades ? round(grossProfit / winningTrades) : null,
+      averageLossUsd: losingTrades ? round(grossLoss / losingTrades) : null,
+      averageHoldingDays: closedTrades ? holdingDays / closedTrades : null,
+      reputationStatus: closedTrades >= 10 ? "PARTIAL" : "INSUFFICIENT_DATA"
     },
     history: { pagesLoaded: (pages || []).length, hasMore: allPagesHaveMore, scope: "CUMULATIVE_PAGES_LOADED_ONLY" }
   };
