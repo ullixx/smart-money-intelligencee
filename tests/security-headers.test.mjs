@@ -4,7 +4,7 @@ import worker from "../src/index.js";
 
 test("applies baseline security headers to static asset responses", async () => {
   const response = await worker.fetch(new Request("https://example.test/"), {
-    ASSETS: { fetch: async () => new Response("<html><script></script></html>", { headers: { "Content-Type": "text/html" } }) }
+    ASSETS: { fetch: async () => new Response("<html><script></script></html>", { headers: { "Content-Type": "text/html", "Content-Encoding": "gzip" } }) }
   });
   assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
   assert.equal(response.headers.get("X-Frame-Options"), "DENY");
@@ -13,6 +13,8 @@ test("applies baseline security headers to static asset responses", async () => 
   assert.match(response.headers.get("Content-Security-Policy") || "", /script-src 'self' 'nonce-[a-f0-9]{36}'/);
   assert.match(await response.text(), /<script nonce="[a-f0-9]{36}">/);
   assert.doesNotMatch(response.headers.get("Content-Security-Policy") || "", /script-src[^;]*unsafe-inline/);
+  assert.equal(response.headers.get("Content-Encoding"), null);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
 });
 
 test("applies security headers to API method errors", async () => {

@@ -45,6 +45,8 @@ async function secureResponse(response) {
     crypto.getRandomValues(bytes);
     nonce = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
     headers.delete("Content-Length");
+    headers.delete("Content-Encoding");
+    headers.delete("Accept-Ranges");
     headers.delete("Content-MD5");
     headers.delete("ETag");
     headers.set("Cache-Control", "no-store");
