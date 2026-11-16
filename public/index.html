@@ -321,10 +321,17 @@ async function inspectReputation(){
   const x=item.summary;
   return '<tr><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(item.address)+'">'+esc(item.address.slice(0,6)+"…"+item.address.slice(-6))+' ↗</a></td><td>'+x.closedTrades+'</td><td>'+fmtRate(x.fifoLotWinRate)+'</td><td>'+fmtFactor(x.profitFactor)+'</td><td>'+fmtPnl(x.estimatedRealizedPnlUsd)+'</td><td>'+fmtRate(item.coverage)+'</td><td>'+esc(x.reputationStatus||"INSUFFICIENT_DATA")+(item.hasMore?" · weitere Historie":"")+'</td></tr>';
  }).join("");
- const qualified=results.filter(x=>!x.error&&x.summary.closedTrades>=10);
- out.innerHTML='<p><b>Performance-Vergleich · PARTIAL</b> · '+qualified.length+' von '+results.length+' Wallets haben mindestens 10 vollständig bewertete abgeschlossene Trades.</p>'+
-  '<div class="tablewrap"><table><thead><tr><th>Wallet</th><th>Abgeschlossene Trades</th><th>Trefferquote</th><th>Profit Factor</th><th>Geschätzter PnL</th><th>Preisabdeckung</th><th>Datenlage</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-  '<p class="muted" style="font-size:11px">Sortierung ist bewusst nicht als Qualitätsrang ausgegeben. PnL und Kurse bleiben Schätzungen: USDC-Gegenfluss mit 1-USD-Peg-Annahme, sonst historische Minuten-/Stundenkerzen. Pro Wallet werden bis zu 150 jüngste Signaturen geprüft; ältere Seiten können nachgeladen werden. Keine Gebühren-, Slippage- oder MEV-Abrechnung.</p>';
+ const ranked=rankPerformanceProfiles(results.filter(x=>!x.error));
+ const rankedRows=ranked.ranked.map(x=>({ ...x, rank:x.rank, comparisonStatus:"VERGLEICHBAR" }));
+ const otherRows=ranked.unqualified.map(x=>({ ...x, rank:null, comparisonStatus:"DATENBASIS ZU KLEIN" }));
+ const displayRows=[...rankedRows,...otherRows].map(item=>{
+  const x=item.summary;
+  return '<tr><td>'+(item.rank??"—")+'</td><td><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(item.address)+'">'+esc(item.address.slice(0,6)+"…"+item.address.slice(-6))+' ↗</a></td><td>'+x.closedTrades+'</td><td>'+fmtRate(x.fifoLotWinRate)+'</td><td>'+fmtFactor(x.profitFactor)+'</td><td>'+fmtPnl(x.estimatedRealizedPnlUsd)+'</td><td>'+fmtRate(item.coverage)+'</td><td>'+item.comparisonStatus+(item.hasMore?" · weitere Historie":"")+'</td></tr>';
+ }).join("");
+ const errors=results.filter(x=>x.error).map(item=>'<tr><td>—</td><td>'+esc(item.address.slice(0,6)+"…"+item.address.slice(-6))+'</td><td colspan="6">UNAVAILABLE · '+esc(item.error)+'</td></tr>').join("");
+ out.innerHTML='<p><b>Performance-Ranking · PARTIAL</b> · '+ranked.ranked.length+' von '+results.length+' Wallets erfüllen die Vergleichskriterien (mindestens 10 abgeschlossene Trades und 80% Preisabdeckung). Rangfolge nach geschätztem realisiertem PnL; Trefferquote dient als Tie-Breaker.</p>'+
+  '<div class="tablewrap"><table><thead><tr><th>Rang</th><th>Wallet</th><th>Abgeschlossene Trades</th><th>Trefferquote</th><th>Profit Factor</th><th>Geschätzter PnL</th><th>Preisabdeckung</th><th>Datenlage</th></tr></thead><tbody>'+displayRows+errors+'</tbody></table></div>'+
+  '<p class="muted" style="font-size:11px">Kein absoluter Qualitäts- oder Zukunfts-Score. Wallets mit zu kleiner Stichprobe oder zu geringer Preisabdeckung erhalten keinen Rang. PnL und Kurse bleiben Schätzungen: USDC-Gegenfluss mit 1-USD-Peg-Annahme, sonst historische Minuten-/Stundenkerzen. Pro Wallet werden bis zu 150 jüngste Signaturen geprüft; ältere Seiten können nachgeladen werden. Keine Gebühren-, Slippage- oder MEV-Abrechnung.</p>';
 }
 document.getElementById("reputationButton").addEventListener("click",inspectReputation);
 
