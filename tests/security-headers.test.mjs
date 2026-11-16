@@ -4,7 +4,7 @@ import worker from "../src/index.js";
 
 test("applies baseline security headers to static asset responses", async () => {
   const response = await worker.fetch(new Request("https://example.test/"), {
-    ASSETS: { fetch: async () => new Response("ok", { headers: { "Content-Type": "text/html" } }) }
+    ASSETS: { fetch: async () => new Response("<html><script></script></html>", { headers: { "Content-Type": "text/html" } }) }
   });
   assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
   assert.equal(response.headers.get("X-Frame-Options"), "DENY");
