@@ -23,6 +23,9 @@ jobs:
       - name: Run swap decoder tests
         run: node --test tests/swap-decoder.test.mjs
 
+      - name: Run C-F intelligence tests
+        run: node --test tests/intelligence-engine.test.mjs
+
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v3
         with:
