@@ -4,7 +4,7 @@ export async function onRequestGet({request}){
  const clean=v=>typeof v==="string"&&v.trim()?v.trim():null;
  // Pump.fun kennt neu gestartete Coins häufig bereits vor dem ersten DEX-Pair.
  try{
-  const response=await fetch("https://frontend-api-v3.pump.fun/coins-v2/"+encodeURIComponent(mint),{headers:{"Accept":"application/json"}});
+  const response=await fetch("https://frontend-api-v3.pump.fun/coins-v2/"+encodeURIComponent(mint),{headers:{"Accept":"application/json"},signal:AbortSignal.timeout(8000)});
   if(response.ok){
    const coin=await response.json();
    if((coin?.mint||"").toLowerCase()===mint.toLowerCase()&&(clean(coin.name)||clean(coin.symbol))){
