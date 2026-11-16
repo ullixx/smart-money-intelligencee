@@ -49,7 +49,18 @@ export async function onRequestGet({request,env}){
       const decoded=decodeLockProgramAccount({programOwner:item.account?.owner,data:bytes,poolId:pool.pairAddress,poolType});
       return decoded.status==="VERIFIED_LOCK_STATE"?{account:item.pubkey,...decoded}:null;
      }).filter(Boolean);
-     lpControl={status:"PARTIAL",poolProgram,lockProgram:RAYDIUM_LOCK_PROGRAM,poolType,verifiedLocks,verifiedLockCount:verifiedLocks.length,lockVerification:verifiedLocks.length?"VERIFIED_LOCKS_FOUND":"NO_LOCK_ACCOUNT_FOUND",lockModel:"BURN_AND_EARN_PERMANENT_LOCK",unlockAt:null,reason:"Raydium-Lock-Program-Accounts wurden anhand des Programms, des Account-Discriminators und der Pool-Adresse geprüft. Burn & Earn ist ein permanentes Lock-Modell; ein Unlock-Zeitpunkt wird nicht behauptet.",checkedAt:new Date().toISOString()};
+     if(poolType==="CPMM"&&verifiedLocks.length){
+      const lpMints=[...new Set(verifiedLocks.map(lock=>lock.lockedLpMint).filter(Boolean))];
+      const supplies=await Promise.all(lpMints.map(mint=>rpc.call("getTokenSupply",[mint,{commitment:"confirmed"}]).catch(()=>null)));
+      const supplyByMint=new Map(lpMints.map((mint,index)=>[mint,supplies[index]?.value?.amount||null]));
+      for(const lock of verifiedLocks){
+       const rawSupply=supplyByMint.get(lock.lockedLpMint);
+       lock.lockedLpSupplyRaw=rawSupply;
+       lock.lockedLpShareOfSupply=rawSupply&&BigInt(rawSupply)>0n?Number(BigInt(lock.lockedLpAmountRaw)*1000000n/BigInt(rawSupply))/10000:null;
+       lock.lockedLpShareStatus=lock.lockedLpShareOfSupply===null?"UNAVAILABLE":"ESTIMATED_FROM_ON_CHAIN_RAW_SUPPLY";
+      }
+     }
+     lpControl={status:"PARTIAL",poolProgram,lockProgram:RAYDIUM_LOCK_PROGRAM,poolType,verifiedLocks,verifiedLockCount:verifiedLocks.length,lockVerification:verifiedLocks.length?"VERIFIED_LOCKS_FOUND":"NO_LOCK_ACCOUNT_FOUND",lockModel:"BURN_AND_EARN_PERMANENT_LOCK",unlockAt:null,reason:"Raydium-Lock-Program-Accounts wurden anhand des Programms, des Account-Discriminators und der Pool-Adresse geprüft. CPMM-LP-Anteile werden aus gesperrter Rohmenge und On-Chain-LP-Supply berechnet; CLMM-Positionen sind NFTs und nicht direkt als LP-Supply-Prozent vergleichbar. Burn & Earn ist permanent; ein Unlock-Zeitpunkt wird nicht behauptet.",checkedAt:new Date().toISOString()};
     }else if(typeof encoded==="string"){
      const binary=atob(encoded),bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
      const decoded=decodeRaydiumV4LpMint({programOwner:poolProgram,data:bytes});
