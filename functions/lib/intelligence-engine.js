@@ -117,3 +117,25 @@ export function analyseIntelligence({ wallets = [], transactionsByWallet = {}, n
     limitations:["Nur die abgefragten Wallets und bis zu fünf jüngste Transaktionen je Wallet.","Historische Saldenänderungen; keine vollständige Marktpreis- oder PnL-Berechnung.","Fee-Payer und Transfer-Gegenparteien sind Kandidaten, keine bestätigten Smart-Money-Wallets.","Keine automatisierte Wallet-Verbindung und keine Trading-Aktionen."]
   };
 }
+
+export function discoverWalletCandidates(transactionsByWallet, excludedWallets = []) {
+  const excluded = new Set(excludedWallets);
+  const mentions = new Map();
+  for (const txs of Object.values(transactionsByWallet || {})) {
+    for (const tx of txs || []) {
+      const message = tx?.transaction?.message || {};
+      const meta = tx?.meta || {};
+      const keys = [...(message.accountKeys || []).map(keyString), ...(meta.loadedAddresses?.writable || []), ...(meta.loadedAddresses?.readonly || [])];
+      const payer = keys[0];
+      if (typeof payer === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(payer) && !excluded.has(payer)) mentions.set(payer,(mentions.get(payer)||0)+1);
+      for (const ix of [...(message.instructions || []), ...(meta.innerInstructions || []).flatMap(x=>x.instructions || [])]) {
+        const parsed=ix.parsed||{},info=parsed.info||{},type=String(parsed.type||"").toLowerCase();
+        const program=ix.programId || (Number.isInteger(ix.programIdIndex)?keys[ix.programIdIndex]:null);
+        if(program==="11111111111111111111111111111111" && ["transfer","transferwithseed"].includes(type)) {
+          for(const peer of [info.source,info.destination]) if(typeof peer==="string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(peer) && !excluded.has(peer)) mentions.set(peer,(mentions.get(peer)||0)+1);
+        }
+      }
+    }
+  }
+  return [...mentions.entries()].map(([address,count])=>({address,mentions:count,discoveryReason:"Fee-Payer oder Gegenpartei eines beobachteten SOL-Transfers",status:"CANDIDATE",warning:"Nicht als Smart Money bestätigt; historische Aktivität separat prüfen"})).sort((a,b)=>b.mentions-a.mentions).slice(0,5);
+}
