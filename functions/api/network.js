@@ -25,7 +25,8 @@ export async function onRequestGet({request,env}) {
      for(const b of tx.meta.postTokenBalances||[])if(b.owner===wallet){const v=deltas.get(b.mint)||{mint:b.mint,delta:0};v.delta+=Number(b.uiTokenAmount?.uiAmountString||0);deltas.set(b.mint,v);}
      const tokenChanges=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta!==0).map(v=>({mint:v.mint,amount:v.delta}));
      const evidence=decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges});
-     const positive=tokenChanges.filter(v=>v.amount>0);
+     const incomingMints=new Set((evidence.walletTokenLegs||[]).filter(v=>v.side==="IN"&&v.mint).map(v=>v.mint));
+     const positive=tokenChanges.filter(v=>v.amount>0&&incomingMints.has(v.mint));
      const confirmedBuy=evidence.classification==="DEX_SWAP_EVIDENCE"&&["SOL_TO_TOKEN","TOKEN_TO_TOKEN"].includes(evidence.direction);
      for(const v of positive)events.push({wallet,mint:v.mint,time:sig.blockTime,signature:sig.signature,amount:v.amount,solDelta,kind:confirmedBuy?"BUY_CANDIDATE":"TOKEN_RECEIPT",classification:evidence.classification,dexPrograms:evidence.dexPrograms});
      const instructions=[...(tx.transaction?.message?.instructions||[]),...(tx.meta.innerInstructions||[]).flatMap(x=>x.instructions||[])];
