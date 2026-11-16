@@ -19,6 +19,17 @@ const DEX_IDS={
 };
 
 const keyString=k=>typeof k==="string"?k:k?.pubkey;
+function rawAmountToUiString(rawAmount,decimals){
+ if(rawAmount===null||rawAmount===undefined||!Number.isInteger(decimals)||decimals<0||decimals>255)return null;
+ const raw=String(rawAmount);if(!/^-?\d+$/.test(raw))return null;
+ let value;try{value=BigInt(raw);}catch{return null;}
+ const negative=value<0n;if(negative)value=-value;
+ const scale=10n**BigInt(decimals),whole=(value/scale).toString();
+ if(decimals===0)return (negative?"-":"")+whole;
+ const fraction=(value%scale).toString().padStart(decimals,"0").replace(/0+$/,"");
+ return (negative?"-":"")+whole+(fraction?"."+fraction:"");
+}
+
 export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
  const message=tx?.transaction?.message||{},meta=tx?.meta||{};
  const staticKeys=message.accountKeys||[];
@@ -60,9 +71,10 @@ export function decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges=[]}={}){
    const mint=info.mint||tokenAccountMints.get(source)||tokenAccountMints.get(destination)||null;
    const rawAmount=info.tokenAmount?.amount??info.amount??null;
    const decimals=info.tokenAmount?.decimals??tokenAccountDecimals.get(source)??tokenAccountDecimals.get(destination)??null;
-   const amountUi=info.tokenAmount?.uiAmountString??(rawAmount!==null&&decimals!==null?Number(rawAmount)/10**decimals:null);
+   const amountUiString=typeof info.tokenAmount?.uiAmountString==="string"?info.tokenAmount.uiAmountString:rawAmount!==null&&decimals!==null?rawAmountToUiString(rawAmount,decimals):null;
+   const amountUi=amountUiString===null?null:Number(amountUiString);
    const feeAmount=info.feeAmount??info.transferFeeAmount??null;
-   tokenTransfers.push({source,destination,sourceOwned,destinationOwned,mint,amount:amountUi,amountUi,rawAmount,decimals,feeAmount,program:id||ix.program||null,tokenProgram:id===TOKEN_2022_PROGRAM?"TOKEN_2022":id===TOKEN_PROGRAM?"SPL_TOKEN":ix.program==="spl-token-2022"?"TOKEN_2022":ix.program==="spl-token"?"SPL_TOKEN":"UNRESOLVED"});
+   tokenTransfers.push({source,destination,sourceOwned,destinationOwned,mint,amount:amountUi,amountUi,amountUiString,rawAmount,decimals,feeAmount,program:id||ix.program||null,tokenProgram:id===TOKEN_2022_PROGRAM?"TOKEN_2022":id===TOKEN_PROGRAM?"SPL_TOKEN":ix.program==="spl-token-2022"?"TOKEN_2022":ix.program==="spl-token"?"SPL_TOKEN":"UNRESOLVED"});
   }
   if(id==="11111111111111111111111111111111"&&["transfer","transferwithseed"].includes(type)){
    const source=info.source||null,destination=info.destination||null;

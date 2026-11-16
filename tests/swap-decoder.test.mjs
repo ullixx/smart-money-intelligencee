@@ -189,3 +189,16 @@ test("recognizes Token-2022 transferCheckedWithFee wallet flows",()=>{
  assert.equal(result.walletTokenTransfers[0].feeAmount,"5");
  assert.equal(result.walletTokenLegs[0].side,"IN");
 });
+
+test("preserves exact UI token amount strings beyond JavaScript safe integer precision",()=>{
+ const tx={transaction:{message:{accountKeys:[WALLET,ATA_A,POOL],instructions:[{programId:"spl-token",parsed:{type:"transfer",info:{source:POOL,destination:ATA_A,amount:"9007199254740993123456789"}}}]}},meta:{preTokenBalances:[{accountIndex:1,owner:WALLET,mint:"MintA",uiTokenAmount:{decimals:9,uiAmountString:"0"}}],postTokenBalances:[]}};
+ const result=decodeSwapEvidence(tx,{wallet:WALLET,tokenChanges:[{mint:"MintA",amount:9007199254740993}]});
+ assert.equal(result.walletTokenTransfers[0].amountUiString,"9007199254740993.123456789");
+ assert.equal(result.walletTokenTransfers[0].rawAmount,"9007199254740993123456789");
+});
+test("rejects malformed raw token amounts rather than converting them to numbers",()=>{
+ const tx={transaction:{message:{accountKeys:[WALLET,ATA_A,POOL],instructions:[{programId:"spl-token",parsed:{type:"transfer",info:{source:POOL,destination:ATA_A,amount:"1e9"}}}]}},meta:{preTokenBalances:[{accountIndex:1,owner:WALLET,mint:"MintA",uiTokenAmount:{decimals:6,uiAmountString:"0"}}],postTokenBalances:[]}};
+ const result=decodeSwapEvidence(tx,{wallet:WALLET});
+ assert.equal(result.walletTokenTransfers[0].amountUiString,null);
+ assert.equal(result.walletTokenTransfers[0].amountUi,null);
+});
