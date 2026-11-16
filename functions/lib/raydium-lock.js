@@ -43,7 +43,7 @@ function bytesFromBase64(value) {
 
 export function decodeLockedCpLiquidityState({ programOwner, data } = {}) {
   if (programOwner !== RAYDIUM_LOCK_PROGRAM) return { status: "UNSUPPORTED", reason: "Account gehört nicht zum verifizierten Raydium-Lock-Programm." };
-  if (!(data instanceof Uint8Array) || data.length < 248) return { status: "UNAVAILABLE", reason: "Locked-CP-Liquidity-State ist zu kurz." };
+  if (!(data instanceof Uint8Array) || data.length < 256) return { status: "UNAVAILABLE", reason: "Locked-CP-Liquidity-State ist zu kurz." };
   if (!CP_DISCRIMINATOR.every((byte, index) => data[index] === byte)) return { status: "UNAVAILABLE", reason: "Account-Discriminator stimmt nicht mit LockedCpLiquidityState überein." };
   return {
     status: "VERIFIED_LOCK_STATE",
