@@ -346,6 +346,32 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
  }
 }
 
+
+/* Operations layout: persistent command rail on wide screens */
+@media(min-width:1100px){
+ main#main-content{max-width:1480px;display:grid;grid-template-columns:228px minmax(0,1fr);column-gap:22px;align-items:start}
+ main#main-content>.eyebrow,main#main-content>h1,main#main-content>.sub,
+ main#main-content>.grid,main#main-content>footer{grid-column:1/-1}
+ main#main-content>.grid{margin-bottom:4px}
+ main#main-content>.mainnav{grid-column:1;grid-row:5;position:sticky;top:88px;display:flex;flex-direction:column;align-self:start;gap:8px;padding:14px 12px;margin:20px 0 0;background:linear-gradient(180deg,#121a12f5,#0b100bf5);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 36px #0007}
+ main#main-content>.mainnav:before{content:"OPERATIONS / MODULES";display:block;color:var(--green);font:700 10px/1.4 "Liberation Mono",monospace;letter-spacing:.12em;padding:3px 7px 10px;border-bottom:1px solid var(--line);margin-bottom:3px}
+ main#main-content>.mainnav .navtab{flex:none;width:100%;text-align:left;position:relative;padding:12px 12px 12px 17px;border-radius:7px;background:transparent;border-color:transparent;font:600 12px "Liberation Mono",monospace;letter-spacing:.035em}
+ main#main-content>.mainnav .navtab:before{content:"";position:absolute;left:6px;top:50%;width:4px;height:4px;border:1px solid currentColor;border-radius:50%;transform:translateY(-50%)}
+ main#main-content>.mainnav .navtab.active{background:#202b18;color:var(--green);border-color:#53643a;box-shadow:inset 2px 0 var(--green),0 0 18px #a8c66c12}
+ main#main-content>section[data-view]{grid-column:2;grid-row:auto;min-width:0;margin-top:20px}
+ main#main-content>section[data-view][hidden]{display:none!important}
+ main#main-content>footer{margin-top:28px}
+}
+@media(max-width:1099px){
+ main#main-content>.mainnav{display:flex;flex-direction:row}
+}
+@media(max-width:760px){
+ main#main-content{display:block}
+ main#main-content>.mainnav{position:sticky;top:65px;z-index:5;display:flex;flex-direction:row;gap:7px}
+ main#main-content>.mainnav:before{display:none}
+ main#main-content>.mainnav .navtab{flex:1;width:auto;text-align:center}
+}
+
 </style></head><body>
 <a class="skip-link" href="#main-content">Zum Inhalt springen</a><header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status" id="connection">● API WIRD GEPRÜFT</div></header>
 <main id="main-content" tabindex="-1"><div class="eyebrow">Solana intelligence terminal</div><h1>Read the flow.<br>Understand the market.</h1><p class="sub">Analyse-Terminal für Solana-Meme-Coins. Marktaktivität und Wallet-Bewegungen mit klarer Kennzeichnung der Datenqualität.</p>
