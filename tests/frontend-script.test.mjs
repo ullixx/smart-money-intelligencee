@@ -127,3 +127,12 @@ test("desktop command center uses persistent tactical rail and preserves mobile 
  assert.match(html,/main#main-content>\.mainnav:before\{display:none\}/);
  assert.match(html,/prefers-reduced-motion:reduce/);
 });
+
+test("mobile command deck has distinct tactical metrics and four-column sticky navigation",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/@media\(max-width:760px\)[\s\S]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+ assert.match(html,/main#main-content>\.mainnav\{position:sticky;top:54px/);
+ assert.match(html,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+ assert.match(html,/text-transform:uppercase/);
+ assert.match(html,/prefers-reduced-motion:reduce/);
+});
