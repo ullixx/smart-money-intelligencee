@@ -177,3 +177,14 @@ test("smart money radar uses existing RPC network endpoint and labels sample lim
  assert.match(html,/Abdeckung/);
  assert.match(html,/mindestens zwei gespeicherte Wallets erforderlich/i);
 });
+
+test("repeated entry monitor uses ranked wallet swap evidence and exposes coverage",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/id="repeatEntryButton"/);
+ assert.match(html,/async function runRepeatedEntryMonitor\(\)/);
+ assert.match(html,/\/api\/ranking\?wallets=/);
+ assert.match(html,/item\.repeatedMints/);
+ assert.match(html,/item\.dexSwapsDetected/);
+ assert.match(html,/item\.coverage/);
+ assert.match(html,/data\.note\|\|/);
+});
