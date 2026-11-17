@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
+import { readFileSync } from "node:fs";
 
 test("applies baseline security headers to static asset responses", async () => {
   const response = await worker.fetch(new Request("https://example.test/"), {
@@ -45,4 +46,11 @@ test("fails closed when the configured API rate limiter is unavailable", async (
   });
   assert.equal(response.status, 503);
   assert.equal((await response.json()).status, "UNAVAILABLE");
+});
+
+test("Wrangler config isolates preview rate-limit namespace from production",()=>{
+ const config=readFileSync(new URL("../wrangler.toml",import.meta.url),"utf8");
+ assert.match(config,/\[\[ratelimits\]\][\s\S]*?namespace_id = "91732026"/);
+ assert.match(config,/\[\[previews\.ratelimits\]\][\s\S]*?namespace_id = "91732027"/);
+ assert.match(config,/\[previews\.ratelimits\.simple\][\s\S]*?limit = 60[\s\S]*?period = 60/);
 });
