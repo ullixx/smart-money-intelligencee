@@ -90,6 +90,6 @@ test("dashboard visual system keeps responsive layouts and accessible focus stat
 
 test("Cloudflare deployment pins Wrangler v4 for rate-limit binding support",()=>{
  const workflow=readFileSync(new URL("../.github/workflows/deploy-cloudflare.yml",import.meta.url),"utf8");
- assert.match(workflow,/uses: cloudflare\\/wrangler-action@v4/);
- assert.match(workflow,/wranglerVersion: ["']4\\./);
+ assert.match(workflow,/uses: cloudflare\/wrangler-action@v4/);
+ assert.match(workflow,/wranglerVersion: ["']4\./);
 });
