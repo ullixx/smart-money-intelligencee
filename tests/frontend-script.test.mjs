@@ -136,3 +136,16 @@ test("mobile command deck has distinct tactical metrics and four-column sticky n
  assert.match(html,/text-transform:uppercase/);
  assert.match(html,/prefers-reduced-motion:reduce/);
 });
+
+test("command center is a real overview powered by discovery and stored wallet data",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/data-target="overview">Command/);
+ assert.match(html,/id="view-overview" data-view="overview"/);
+ assert.match(html,/id="commandRadar"/);
+ assert.match(html,/id="commandSignals"/);
+ assert.match(html,/id="commandWalletList"/);
+ assert.match(html,/function renderCommandCenter\(\)/);
+ assert.match(html,/renderCommandCenter\(\);/);
+ assert.match(html,/kein Wallet-Flow-Nachweis/);
+ assert.match(html,/NOT CLASSIFIED/);
+});
