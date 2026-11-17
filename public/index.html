@@ -479,6 +479,19 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
 .radar-result-row a{color:#b8d58b}
 @media(max-width:760px){.command-radar-intel{grid-column:auto}.radar-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
+
+.command-repeat-monitor{grid-column:1/-1}
+#repeatEntryResult{margin-top:10px}
+.repeat-wallet{padding:11px 0;border-bottom:1px solid #303d28}
+.repeat-wallet:last-child{border-bottom:0}
+.repeat-wallet-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.repeat-wallet-head b{font:700 11px "Liberation Mono",monospace;color:#e0ebcf}
+.repeat-wallet-metrics{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+.repeat-wallet-metrics span{font:10px "Liberation Mono",monospace;color:#aab996;background:#10190e;border:1px solid #34432a;padding:4px 6px;border-radius:4px}
+.repeat-wallet-meter{height:4px;background:#283321;border-radius:4px;margin-top:8px;overflow:hidden}
+.repeat-wallet-meter i{display:block;height:100%;background:#a8c66c;box-shadow:0 0 8px #a8c66c88}
+@media(max-width:760px){.command-repeat-monitor{grid-column:auto}}
+
 </style></head><body>
 <a class="skip-link" href="#main-content">Zum Inhalt springen</a><header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status" id="connection">● API WIRD GEPRÜFT</div></header>
 <main id="main-content" tabindex="-1"><div class="eyebrow">Solana intelligence terminal</div><h1>Read the flow.<br>Understand the market.</h1><p class="sub">Analyse-Terminal für Solana-Meme-Coins. Marktaktivität und Wallet-Bewegungen mit klarer Kennzeichnung der Datenqualität.</p>
@@ -502,6 +515,12 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
    <p class="command-footnote">Sucht zeitliche Token-Überschneidungen und gemeinsame Funding-Absender unter deinen gespeicherten Wallets.</p>
    <button type="button" class="command-link" id="smartMoneyRadarButton">Radar starten ↗</button>
    <div id="smartMoneyRadarResult" class="command-list" aria-live="polite"><p class="muted">Manuelle Analyse · mindestens zwei gespeicherte Wallets erforderlich.</p></div>
+  </article>
+  <article class="panel command-repeat-monitor">
+   <div class="command-panel-head"><div><span class="command-kicker">04 / REPEATED ENTRY MONITOR</span><h3>Wiederholte Token-Einstiege</h3></div><span class="command-live">RPC SAMPLE</span></div>
+   <p class="command-footnote">Prüft die letzten Transaktionen gespeicherter Wallets auf wiederholt berührte Token und Swap-Aktivität.</p>
+   <button type="button" class="command-link" id="repeatEntryButton">Wallets auswerten ↗</button>
+   <div id="repeatEntryResult" class="command-list" aria-live="polite"><p class="muted">Manuelle Prüfung · gespeicherte Wallets erforderlich.</p></div>
   </article>
   <article class="panel command-wallets">
    <div class="command-panel-head"><div><span class="command-kicker">03 / WALLET FILES</span><h3>Beobachtete Wallets</h3></div><span class="command-live">LOCAL STORAGE</span></div>
@@ -556,6 +575,28 @@ function renderDiscovery(){
  rows.innerHTML=filtered.length?filtered.map(t=>'<tr><td><a target="_blank" rel="noopener" href="'+esc(t.url||("https://solscan.io/token/"+t.address))+'"><b>'+esc(t.name||"Unbekannt")+'</b> ↗</a><br><span class="muted">'+esc(t.symbol||((t.address||"").slice(0,8)+"…"))+'</span></td><td>'+fmt(t.priceUsd)+'</td><td>'+money(t.liquidityUsd)+'</td><td>'+money(t.volume24h)+'</td><td>'+(t.marketCapUsd!==null&&t.marketCapUsd!==undefined?'<span>MC '+money(t.marketCapUsd)+'</span>':'<span class="muted">MC —</span>')+'<br><span class="muted">FDV '+money(t.fdvUsd)+'</span>'+'</td><td>'+(t.pairCreatedAt?Math.max(0,Math.floor((Date.now()-t.pairCreatedAt)/3600000))+" h":"—")+'</td><td>'+(t.buys24h??"—")+' / '+(t.sells24h??"—")+'</td><td><b style="color:'+(t.riskLevel==="HIGH"?"var(--red)":t.riskLevel==="ELEVATED"||t.riskLevel==="PARTIAL"?"var(--amber)":t.riskLevel==="LOW"?"var(--green)":"var(--muted)")+'">'+(t.riskScore??"—")+'/100</b><br><span class="muted">'+(t.riskLevel==="HIGH"?"HOCH":t.riskLevel==="ELEVATED"?"ERHÖHT":t.riskLevel==="LOW"?"NIEDRIG":t.riskLevel==="PARTIAL"?"TEILWEISE":"UNBEKANNT")+'</span><br><button type="button" data-security="'+esc(t.address)+'" style="margin-top:6px;padding:6px 8px;font-size:10px;background:#263a56;color:var(--text)">Mint prüfen</button></td><td>'+(t.flags?.length?t.flags.map(esc).join("<br>"):"—")+'</td><td><span class="state">'+(t.hasMarketPair?"LIVE":"PARTIAL")+'</span></td></tr>').join(""):'<tr><td colspan="10" class="muted">Keine Token entsprechen den Filtern.</td></tr>';
 }
 
+
+
+async function runRepeatedEntryMonitor(){
+ const out=document.getElementById("repeatEntryResult"),button=document.getElementById("repeatEntryButton");
+ const wallets=getWallets().slice(0,10);
+ if(!wallets.length){out.textContent="Bitte zuerst Wallets speichern.";return;}
+ button.disabled=true;button.textContent="Prüfe Transaktionen …";out.textContent="Lade bis zu zehn jüngste Transaktionen je Wallet …";
+ try{
+  const response=await fetch("/api/ranking?wallets="+encodeURIComponent(wallets.join(",")),{cache:"no-store"});
+  const data=await response.json();if(!response.ok)throw new Error(data.detail||data.error||"Wallet-Ranking nicht verfügbar");
+  const rows=data.ranked||[];
+  out.innerHTML='<p class="command-footnote">'+esc(data.status||"PARTIAL")+' · '+esc(data.walletsChecked??wallets.length)+' Wallets · '+esc(data.source||"Solana RPC")+'</p>'+
+   (rows.length?rows.map(item=>{
+    const score=Number.isFinite(Number(item.score))?Number(item.score):null;
+    const repeated=Number(item.repeatedMints)||0;
+    const ratio=Number.isFinite(Number(item.buyRatio))?Math.round(Number(item.buyRatio)*100):null;
+    return '<div class="repeat-wallet"><div class="repeat-wallet-head"><b><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(item.address)+'">'+esc(item.address.slice(0,7)+"…"+item.address.slice(-6))+' ↗</a></b><b>'+(score===null?"—":score+"/100")+'</b></div><div class="repeat-wallet-metrics"><span>'+esc(item.status)+'</span><span>'+esc(item.dexSwapsDetected??0)+' DEX-Hinweise</span><span>'+esc(item.inferredSwaps??0)+' Swap-Kandidaten</span><span>'+esc(item.repeatedMints??0)+' wiederholte Token</span><span>'+(ratio===null?"—":ratio+"% BUY-Anteil")+'</span><span>'+esc(item.coverage??0)+'% Abdeckung</span></div><div class="repeat-wallet-meter"><i style="width:'+Math.max(0,Math.min(100,score||0))+'%"></i></div></div>';
+   }).join(""):'<p class="muted">Keine auswertbaren Wallets in der aktuellen Stichprobe.</p>')+
+   '<p class="command-footnote">'+esc(data.note||"")+'</p>';
+ }catch(error){out.textContent="UNAVAILABLE · "+error.message;}
+ finally{button.disabled=false;button.textContent="Erneut auswerten ↗";}
+}
 
 async function runSmartMoneyRadar(){
  const out=document.getElementById("smartMoneyRadarResult"),button=document.getElementById("smartMoneyRadarButton");
@@ -1028,6 +1069,7 @@ function setActiveView(view){document.querySelectorAll("section[data-view]").for
 document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
 document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
 document.getElementById("smartMoneyRadarButton").addEventListener("click",runSmartMoneyRadar);
+document.getElementById("repeatEntryButton").addEventListener("click",runRepeatedEntryMonitor);
 document.getElementById("main-content").addEventListener("click",event=>{
  const nav=event.target.closest("[data-command-view]");
  const token=event.target.closest("[data-command-token]");
