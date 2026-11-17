@@ -5,7 +5,7 @@ function parseRawAmount(balance) {
     throw new TypeError("Ungültige Token-Dezimalstellen in RPC-Metadaten");
   }
   const raw = token?.amount;
-  if (raw === undefined || raw === null || !/^\\d+$/.test(String(raw))) {
+  if (raw === undefined || raw === null || !/^\d+$/.test(String(raw))) {
     throw new TypeError("Ungültiger Raw-Tokenbetrag in RPC-Metadaten");
   }
   return { raw: BigInt(String(raw)), decimals };
