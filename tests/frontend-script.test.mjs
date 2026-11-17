@@ -75,3 +75,14 @@ test("frontend displays network fee coverage and does not invent a slippage esti
  assert.match(html,/Slippage-Bewertung/);
  assert.match(html,/Keine historische Pre-Trade-DEX-Quote vorhanden/);
 });
+
+
+test("dashboard visual system keeps responsive layouts and accessible focus states",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/--surface-raised:#152238/);
+ assert.match(html,/max-width:1480px/);
+ assert.match(html,/@media\(max-width:760px\)/);
+ assert.match(html,/\.navtab\.active/);
+ assert.match(html,/button:focus-visible/);
+ assert.match(html,/prefers-reduced-motion:reduce/);
+});
