@@ -22,3 +22,27 @@ test("applies security headers to API method errors", async () => {
   assert.equal(response.status, 405);
   assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
 });
+
+
+test("rate limits expensive API routes with weighted per-client requests", async () => {
+  let call;
+  const response = await worker.fetch(new Request("https://example.test/api/performance?address=invalid", {
+    headers: { "CF-Connecting-IP": "203.0.113.8" }
+  }), {
+    API_RATE_LIMITER: { limit: async value => { call = value; return { success: false }; } }
+  });
+  assert.equal(response.status, 429);
+  assert.equal(response.headers.get("Retry-After"), "60");
+  assert.deepEqual(call, { key: "203.0.113.8", delta: 5 });
+  assert.equal((await response.json()).status, "RATE_LIMITED");
+});
+
+test("fails closed when the configured API rate limiter is unavailable", async () => {
+  const response = await worker.fetch(new Request("https://example.test/api/health", {
+    headers: { "CF-Connecting-IP": "203.0.113.9" }
+  }), {
+    API_RATE_LIMITER: { limit: async () => { throw new Error("binding unavailable"); } }
+  });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).status, "UNAVAILABLE");
+});

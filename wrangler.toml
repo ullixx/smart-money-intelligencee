@@ -5,3 +5,11 @@ compatibility_date = "2026-11-15"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+[[ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "91732026"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60
