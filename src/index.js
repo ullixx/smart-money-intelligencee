@@ -68,6 +68,39 @@ export default {
       if (request.method !== "GET") {
         return secureResponse(Response.json({ status: "UNAVAILABLE", error: "Method not allowed" }, { status: 405 }));
       }
+      if (env.API_RATE_LIMITER) {
+        // No authenticated user identity exists yet; use Cloudflare's trusted client IP.
+        // Limits are approximate and local to a Cloudflare location.
+        const clientKey = request.headers.get("CF-Connecting-IP") || "unknown-client";
+        const routeWeight = {
+          "/api/performance": 5,
+          "/api/intelligence": 5,
+          "/api/network": 3,
+          "/api/ranking": 3,
+          "/api/discovery": 3,
+          "/api/fomo": 2,
+          "/api/entry": 2,
+          "/api/wallet": 2,
+          "/api/developer": 2,
+          "/api/token-security": 1,
+          "/api/token-info": 1,
+          "/api/health": 1
+        }[url.pathname] || 1;
+        try {
+          const decision = await env.API_RATE_LIMITER.limit({ key: clientKey, delta: routeWeight });
+          if (!decision?.success) {
+            return secureResponse(Response.json(
+              { status: "RATE_LIMITED", error: "Zu viele API-Anfragen. Bitte später erneut versuchen." },
+              { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "60" } }
+            ));
+          }
+        } catch {
+          return secureResponse(Response.json(
+            { status: "UNAVAILABLE", error: "API-Schutz ist vorübergehend nicht verfügbar." },
+            { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "60" } }
+          ));
+        }
+      }
       try {
         return secureResponse(await handler({ request, env, params: {} }));
       } catch (error) {
