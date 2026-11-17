@@ -58,3 +58,20 @@ test("frontend prevents duplicate form submissions while requests are running",(
  assert.equal((html.match(/bindBusySubmit\("(?:walletForm|entryForm|developerForm)"/g)||[]).length,3);
  assert.match(html,/form\.dataset\.busy==="true"/);
 });
+
+
+test("frontend FIFO aggregation uses exact raw token units across pages",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/const exactMode=rawMeta\.every\(Boolean\)&&rawMeta\.every\(x=>x\.decimals===rawMeta\[0\]\.decimals\)/);
+ assert.match(html,/remainingRaw>0n/);
+ assert.match(html,/matchedRawAmount:exactMode\?matchedRaw\.toString\(\):null/);
+ assert.match(html,/quantityPrecision:exactMode\?"RAW_BIGINT":"NUMBER_FALLBACK"/);
+});
+
+test("frontend displays network fee coverage and does not invent a slippage estimate",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/Wallet-bezahlte Netzwerkgebühren/);
+ assert.match(html,/USD-Bewertung noch nicht enthalten/);
+ assert.match(html,/Slippage-Bewertung/);
+ assert.match(html,/Keine historische Pre-Trade-DEX-Quote vorhanden/);
+});
