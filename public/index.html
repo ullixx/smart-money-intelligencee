@@ -492,6 +492,21 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
 .repeat-wallet-meter i{display:block;height:100%;background:#a8c66c;box-shadow:0 0 8px #a8c66c88}
 @media(max-width:760px){.command-repeat-monitor{grid-column:auto}}
 
+
+.command-concentration{grid-column:1/-1}
+.concentration-wrap{overflow-x:auto;margin-top:10px}
+.concentration-table{width:100%;border-collapse:collapse;min-width:420px;font-size:10px}
+.concentration-table th,.concentration-table td{padding:8px 6px;border-bottom:1px solid #303d28;text-align:center}
+.concentration-table th:first-child,.concentration-table td:first-child{text-align:left}
+.concentration-cell{display:inline-block;width:17px;height:17px;border-radius:4px;background:#172116;border:1px solid #3a4930}
+.concentration-cell.present{background:#a8c66c;border-color:#c4df8e;box-shadow:0 0 9px #a8c66c55}
+.concentration-legend{display:flex;gap:8px;align-items:center;font-size:10px;color:#9eac8a;margin:8px 0}
+.concentration-legend i{display:inline-block;width:9px;height:9px;background:#a8c66c;border-radius:2px}
+.concentration-token{padding:10px 0;border-bottom:1px solid #303d28}
+.concentration-token b{color:#dbe8c9;font:700 11px "Liberation Mono",monospace}
+.concentration-token small{color:#a4b291}
+@media(max-width:760px){.command-concentration{grid-column:auto}}
+
 </style></head><body>
 <a class="skip-link" href="#main-content">Zum Inhalt springen</a><header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status" id="connection">● API WIRD GEPRÜFT</div></header>
 <main id="main-content" tabindex="-1"><div class="eyebrow">Solana intelligence terminal</div><h1>Read the flow.<br>Understand the market.</h1><p class="sub">Analyse-Terminal für Solana-Meme-Coins. Marktaktivität und Wallet-Bewegungen mit klarer Kennzeichnung der Datenqualität.</p>
@@ -521,6 +536,12 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
    <p class="command-footnote">Prüft die letzten Transaktionen gespeicherter Wallets auf wiederholt berührte Token und Swap-Aktivität.</p>
    <button type="button" class="command-link" id="repeatEntryButton">Wallets auswerten ↗</button>
    <div id="repeatEntryResult" class="command-list" aria-live="polite"><p class="muted">Manuelle Prüfung · gespeicherte Wallets erforderlich.</p></div>
+  </article>
+  <article class="panel command-concentration">
+   <div class="command-panel-head"><div><span class="command-kicker">05 / TOKEN CONCENTRATION</span><h3>Token-Konzentration & Einstiegsfenster</h3></div><span class="command-live">CROSS-WALLET</span></div>
+   <p class="command-footnote">Vergleicht gemeinsam berührte Token und zeitliche Kaufkandidaten der gespeicherten Wallets.</p>
+   <button type="button" class="command-link" id="concentrationButton">Konzentration analysieren ↗</button>
+   <div id="concentrationResult" class="command-list" aria-live="polite"><p class="muted">Mindestens zwei gespeicherte Wallets erforderlich.</p></div>
   </article>
   <article class="panel command-wallets">
    <div class="command-panel-head"><div><span class="command-kicker">03 / WALLET FILES</span><h3>Beobachtete Wallets</h3></div><span class="command-live">LOCAL STORAGE</span></div>
@@ -576,6 +597,32 @@ function renderDiscovery(){
 }
 
 
+
+
+async function runTokenConcentration(){
+ const out=document.getElementById("concentrationResult"),button=document.getElementById("concentrationButton");
+ const wallets=getWallets().slice(0,5);
+ if(wallets.length<2){out.textContent="Mindestens zwei gespeicherte Wallets hinzufügen.";return;}
+ button.disabled=true;button.textContent="Vergleiche Token und Zeitfenster …";out.textContent="Prüfe gemeinsame Token-Muster anhand der RPC-Stichprobe …";
+ try{
+  const response=await fetch("/api/network?wallets="+encodeURIComponent(wallets.join(",")),{cache:"no-store"});
+  const data=await response.json();if(!response.ok)throw new Error(data.detail||data.error||"Analyse nicht verfügbar");
+  const clusters=data.clusters||[],shared=data.sharedTokens||[];
+  const tokenSet=new Map();
+  for(const item of shared)tokenSet.set(item.mint,{mint:item.mint,wallets:[],walletCount:item.walletCount,buyCandidates:item.buyCandidates,clusters:[]});
+  for(const cluster of clusters){
+   const item=tokenSet.get(cluster.mint)||{mint:cluster.mint,wallets:[],walletCount:cluster.walletCount,buyCandidates:cluster.buyCandidateCount,clusters:[]};
+   item.wallets=[...new Set([...(item.wallets||[]),...(cluster.wallets||[])])];item.clusters.push(cluster);tokenSet.set(cluster.mint,item);
+  }
+  const tokens=[...tokenSet.values()].sort((a,b)=>(b.walletCount||b.wallets.length)-(a.walletCount||a.wallets.length)).slice(0,12);
+  const header='<p class="command-footnote">'+esc(data.status||"PARTIAL")+' · '+esc(data.walletsChecked??wallets.length)+' Wallets · '+esc(data.transactionsAnalysed??0)+'/'+esc(data.transactionsRequested??0)+' Transaktionen · '+esc(data.coverage??"—")+'% Abdeckung</p>';
+  if(!tokens.length){out.innerHTML=header+'<p class="muted">Keine gemeinsamen Token oder zeitlichen Überschneidungen in der geprüften Stichprobe.</p>';return;}
+  const matrix='<div class="concentration-wrap"><table class="concentration-table"><thead><tr><th>Token / Wallet</th>'+wallets.map((w,i)=>'<th>W'+(i+1)+'</th>').join("")+'</tr></thead><tbody>'+tokens.map(item=>'<tr><td><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(item.mint)+'">'+esc(item.mint.slice(0,6)+"…"+item.mint.slice(-5))+' ↗</a></td>'+wallets.map(w=>'<td><span class="concentration-cell '+((item.wallets||[]).includes(w)?"present":"")+'" title="'+((item.wallets||[]).includes(w)?"In Cluster-Evidenz enthalten":"Keine Cluster-Zuordnung")+'"></span></td>').join("")+'</tr>').join("")+'</tbody></table></div><div class="concentration-legend"><i></i> Wallet in zeitlichem Überschneidungs-Cluster enthalten</div>';
+  const detail=tokens.map(item=>'<div class="concentration-token"><b>'+esc(item.mint.slice(0,7)+"…"+item.mint.slice(-6))+'</b><br><small>'+esc(item.walletCount||item.wallets.length)+' Wallets · '+esc(item.buyCandidates??0)+' Kaufkandidaten · '+item.clusters.map(c=>esc(c.windowMinutes)+' Min.').join(" / ")+'</small>'+(item.clusters.length?'<br><small>'+item.clusters.map(c=>esc(c.evidenceLevel)+" · "+esc(c.interpretation)).join("<br>")+'</small>':"")+'</div>').join("");
+  out.innerHTML=header+matrix+'<h4 class="command-kicker" style="margin-top:14px">EINSTIEGSFENSTER / EVIDENZ</h4>'+detail+'<p class="command-footnote">Die Matrix zeigt nur vom Endpoint gelieferte Cluster-Zuordnungen. Fehlende Zellen bedeuten fehlende Evidenz in dieser Stichprobe, nicht zwingend keine Aktivität. Zeitliche Nähe beweist keine Koordination oder gemeinsame Kontrolle.</p>';
+ }catch(error){out.textContent="UNAVAILABLE · "+error.message;}
+ finally{button.disabled=false;button.textContent="Erneut analysieren ↗";}
+}
 
 async function runRepeatedEntryMonitor(){
  const out=document.getElementById("repeatEntryResult"),button=document.getElementById("repeatEntryButton");
@@ -1070,6 +1117,7 @@ document.querySelector(".mainnav").addEventListener("click",event=>{const tab=ev
 document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
 document.getElementById("smartMoneyRadarButton").addEventListener("click",runSmartMoneyRadar);
 document.getElementById("repeatEntryButton").addEventListener("click",runRepeatedEntryMonitor);
+document.getElementById("concentrationButton").addEventListener("click",runTokenConcentration);
 document.getElementById("main-content").addEventListener("click",event=>{
  const nav=event.target.closest("[data-command-view]");
  const token=event.target.closest("[data-command-token]");
