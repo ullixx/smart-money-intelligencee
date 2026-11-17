@@ -140,3 +140,40 @@ test("does not rank null realized PnL as a zero-profit wallet", async () => {
   assert.equal(result.unqualified.length, 1);
   assert.equal(result.unqualified[0].eligible, false);
 });
+
+
+test("matches raw token units smaller than the former floating-point epsilon", () => {
+  const result = aggregatePerformancePages([page([
+    { ...event("buy-tiny", "BUY", 100, 10, 1e-15), rawAmount: "1", decimals: 15 },
+    { ...event("sell-tiny", "SELL", 200, 15, 1e-15), rawAmount: "1", decimals: 15 }
+  ])]);
+  const token = result.tokenResults[0];
+  assert.equal(token.closedLots, 1);
+  assert.equal(token.openLots, 0);
+  assert.equal(token.quantityPrecision, "RAW_BIGINT");
+  assert.equal(token.matchedRawAmount, "1");
+  assert.equal(token.matchedTokenAmount, 1e-15);
+});
+
+test("matches large raw quantities exactly across partial FIFO sells", () => {
+  const result = aggregatePerformancePages([page([
+    { ...event("buy-large", "BUY", 100, 2, 9007199.254740993), rawAmount: "9007199254740993", decimals: 9 },
+    { ...event("sell-part-1", "SELL", 200, 3, 4503599.627370496), rawAmount: "4503599627370496", decimals: 9 },
+    { ...event("sell-part-2", "SELL", 300, 3, 4503599.627370497), rawAmount: "4503599627370497", decimals: 9 }
+  ])]);
+  const token = result.tokenResults[0];
+  assert.equal(token.closedLots, 2);
+  assert.equal(token.openLots, 0);
+  assert.equal(token.quantityPrecision, "RAW_BIGINT");
+  assert.equal(token.matchedRawAmount, "9007199254740993");
+  assert.ok(Math.abs(token.matchedTokenAmount - 9007199.254740993) < 0.00000001);
+});
+
+test("falls back safely when raw token metadata is incomplete or inconsistent", () => {
+  const result = aggregatePerformancePages([page([
+    { ...event("buy-fallback", "BUY", 100, 10, 1), rawAmount: "100", decimals: 2 },
+    event("sell-fallback", "SELL", 200, 15, 1)
+  ])]);
+  assert.equal(result.tokenResults[0].quantityPrecision, "NUMBER_FALLBACK");
+  assert.equal(result.tokenResults[0].estimatedRealizedPnlUsd, 5);
+});
