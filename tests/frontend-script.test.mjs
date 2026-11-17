@@ -149,3 +149,20 @@ test("command center is a real overview powered by discovery and stored wallet d
  assert.match(html,/kein Wallet-Flow-Nachweis/);
  assert.match(html,/NOT CLASSIFIED/);
 });
+
+test("wallet investigation renders a sourced dossier and transaction timeline",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/function walletDossierHeader\(address,data,transactions\)/);
+ assert.match(html,/function renderWalletTimeline\(transactions\)/);
+ assert.match(html,/TRANSACTION TIMELINE/);
+ assert.match(html,/WALLET INVESTIGATION \/ DOSSIER/);
+ assert.match(html,/data\.summary\|\|\{\}/);
+ assert.match(html,/Keine Zeitstempel für eine Timeline verfügbar/);
+});
+test("wallet network relation map only draws observed cluster links",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/function renderNetworkEvidenceMap\(data\)/);
+ assert.match(html,/token\.cluster\.wallets\.includes\(wallet\.wallet\)/);
+ assert.match(html,/beweisen weder gemeinsame Kontrolle noch koordinierte Käufe/);
+ assert.match(html,/renderNetworkEvidenceMap\(d\)/);
+});
