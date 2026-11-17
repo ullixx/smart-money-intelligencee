@@ -131,6 +131,13 @@ export function aggregatePerformancePages(pages = []) {
   const grossProfit = tokenResults.reduce((n, x) => n + (x.grossProfitUsd || 0), 0);
   const grossLoss = tokenResults.reduce((n, x) => n + (x.grossLossUsd || 0), 0);
   const realizedPnl = tokenResults.reduce((n, x) => n + (x.estimatedRealizedPnlUsd || 0), 0);
+  const feesBySignature = new Map();
+  for (const event of eventsByKey.values()) {
+    if (event.feePaidByWallet === true && event.signature && Number.isFinite(event.feeSol) && event.feeSol >= 0) {
+      if (!feesBySignature.has(event.signature)) feesBySignature.set(event.signature, event.feeSol);
+    }
+  }
+  const walletPaidNetworkFeesSol = [...feesBySignature.values()].reduce((sum, fee) => sum + fee, 0);
   const allPagesHaveMore = (pages || []).some(page => page?.historyPagination?.hasMore);
   return {
     status: "PARTIAL",
