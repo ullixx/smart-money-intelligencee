@@ -407,11 +407,76 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
  main#main-content>.grid>.metric strong{font-size:19px}
 }
 
+
+/* Operational command center: live values only, no fabricated wallet intelligence */
+.command-overview{margin-top:20px}
+.command-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.command-grid>.panel{min-width:0;padding:17px;border-radius:10px;background:linear-gradient(145deg,#172216,#0b120c);border:1px solid #435137;box-shadow:inset 0 1px #ffffff08,0 12px 30px #0005}
+.command-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-bottom:1px solid #39452d;padding-bottom:12px;margin-bottom:9px}
+.command-kicker{font:700 9px "Liberation Mono",monospace;letter-spacing:.14em;color:#a8c66c}
+.command-panel-head h3{font:800 15px "Liberation Mono",monospace;text-transform:uppercase;margin:5px 0 0}
+.command-live{font:700 9px "Liberation Mono",monospace;color:#b4c58f;border:1px solid #465538;border-radius:4px;padding:4px 6px;white-space:nowrap}
+.command-list{display:flex;flex-direction:column;gap:0;min-height:70px}
+.command-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #2b3625}
+.command-row:last-child{border-bottom:0}
+.command-row-main{min-width:0}
+.command-row-title{display:block;font:700 12px "Liberation Mono",monospace;color:#e3ebd7;overflow-wrap:anywhere}
+.command-row-meta{display:block;font-size:10px;color:#9ba98b;margin-top:4px}
+.command-row-value{text-align:right;font:700 12px "Liberation Mono",monospace;color:#d6e6b9;white-space:nowrap}
+.command-row button{background:none;border:0;color:inherit;padding:0;text-align:left;min-height:0;font:inherit;cursor:pointer}
+.command-signal{display:flex;gap:8px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #2b3625;font-size:11px}
+.command-signal:last-child{border:0}
+.command-signal-mark{width:7px;height:7px;flex:none;border-radius:50%;margin-top:5px;background:#b7c78c;box-shadow:0 0 10px #a8c66c66}
+.command-signal-mark.warn{background:#d7a85a;box-shadow:0 0 10px #d7a85a66}
+.command-signal-mark.danger{background:#d76b61;box-shadow:0 0 10px #d76b6166}
+.command-signal b{color:#e4ebd9}
+.command-footnote{font-size:10px;line-height:1.5;color:#88977a;margin:10px 0 0}
+.command-link{margin-top:10px;padding:8px 10px;background:#202d18;color:#c8dc9c;border:1px solid #4d6038;border-radius:5px;font:700 10px "Liberation Mono",monospace}
+.command-wallet-count{display:flex;align-items:baseline;gap:10px;padding:9px 0}
+.command-wallet-count strong{font:800 34px "Liberation Mono",monospace;color:#d8e9b7}
+.command-wallet-count span{font-size:11px;color:#9ba98b}
+.command-wallet-list{display:flex;flex-direction:column;gap:7px;min-height:45px}
+.command-wallet-item{font:11px "Liberation Mono",monospace;color:#c6d2b4;overflow-wrap:anywhere;padding:7px 8px;background:#111a0f;border:1px solid #34422a;border-radius:4px}
+.command-truth-row{display:flex;justify-content:space-between;gap:8px;padding:11px 0;border-bottom:1px solid #2b3625;font-size:11px}
+.command-truth-row b{font:700 10px "Liberation Mono",monospace;color:#b9d18b;text-align:right}
+.command-truth-row .truth-partial{color:#d6aa62}
+@media(max-width:760px){.command-grid{grid-template-columns:1fr}.command-grid>.panel{padding:14px}.command-panel-head h3{font-size:14px}.command-overview{margin-top:15px}.mainnav .navtab{flex:1 0 auto;min-width:62px;font-size:10px;padding:9px 5px}}
+@media(prefers-reduced-motion:no-preference){.command-grid>.panel{animation:smi-panel-enter .45s ease both}.command-grid>.panel:nth-child(2){animation-delay:.06s}.command-grid>.panel:nth-child(3){animation-delay:.12s}.command-grid>.panel:nth-child(4){animation-delay:.18s}@keyframes smi-panel-enter{from{opacity:.65;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}}
+
 </style></head><body>
 <a class="skip-link" href="#main-content">Zum Inhalt springen</a><header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status" id="connection">● API WIRD GEPRÜFT</div></header>
 <main id="main-content" tabindex="-1"><div class="eyebrow">Solana intelligence terminal</div><h1>Read the flow.<br>Understand the market.</h1><p class="sub">Analyse-Terminal für Solana-Meme-Coins. Marktaktivität und Wallet-Bewegungen mit klarer Kennzeichnung der Datenqualität.</p>
 <div class="grid"><div class="metric"><small>Tracked wallets</small><strong id="walletCount">0</strong><em>Im Browser gespeichert</em></div><div class="metric"><small>Discovery tokens</small><strong id="tokenCount">—</strong><em id="tokenState">Wird geladen</em></div><div class="metric"><small>Smart money flow</small><strong>—</strong><em>Noch keine Klassifizierung</em></div><div class="metric"><small>Market pulse</small><strong>—</strong><em>Kommt nach Datenvalidierung</em></div></div>
-<nav class="mainnav" aria-label="Hauptnavigation"><button type="button" class="navtab active" data-target="discovery">Discovery</button><button type="button" class="navtab" data-target="wallets">Wallets</button><button type="button" class="navtab" data-target="intelligence">Intelligence</button><button type="button" class="navtab" data-target="system">System</button></nav>
+<nav class="mainnav" aria-label="Hauptnavigation"><button type="button" class="navtab active" data-target="overview">Command</button><button type="button" class="navtab" data-target="discovery">Discovery</button><button type="button" class="navtab" data-target="wallets">Wallets</button><button type="button" class="navtab" data-target="intelligence">Intelligence</button><button type="button" class="navtab" data-target="system">System</button></nav>
+<section class="section command-overview" id="view-overview" data-view="overview">
+ <div class="sectionhead"><h2>Operational picture · Solana</h2><span class="tag" id="commandDataStatus">WAITING FOR DATA</span></div>
+ <div class="command-grid">
+  <article class="panel command-radar">
+   <div class="command-panel-head"><div><span class="command-kicker">01 / MARKET RADAR</span><h3>Aktivste Märkte</h3></div><span class="command-live" id="commandRadarCount">0 PAIRS</span></div>
+   <div id="commandRadar" class="command-list" aria-live="polite"><p class="muted">Marktdaten werden geladen …</p></div>
+   <button type="button" class="command-link" data-command-view="discovery">Alle Märkte öffnen ↗</button>
+  </article>
+  <article class="panel command-signals">
+   <div class="command-panel-head"><div><span class="command-kicker">02 / SIGNAL MONITOR</span><h3>Beobachtungen</h3></div><span class="command-live">DATA-DRIVEN</span></div>
+   <div id="commandSignals" class="command-list" aria-live="polite"><p class="muted">Warte auf validierte Marktdaten …</p></div>
+   <p class="command-footnote">Beobachtungen aus geladenen DEX-Daten. Keine Kaufempfehlungen und keine Smart-Money-Zuordnung.</p>
+  </article>
+  <article class="panel command-wallets">
+   <div class="command-panel-head"><div><span class="command-kicker">03 / WALLET FILES</span><h3>Beobachtete Wallets</h3></div><span class="command-live">LOCAL STORAGE</span></div>
+   <div class="command-wallet-count"><strong id="commandWalletCount">0</strong><span>gespeicherte Adressen</span></div>
+   <div id="commandWalletList" class="command-wallet-list"><p class="muted">Noch keine Wallets gespeichert.</p></div>
+   <button type="button" class="command-link" data-command-view="wallets">Wallet-Akten öffnen ↗</button>
+  </article>
+  <article class="panel command-truth">
+   <div class="command-panel-head"><div><span class="command-kicker">04 / DATA TRUTH</span><h3>Datenlage</h3></div><span class="command-live">SOURCE STATUS</span></div>
+   <div class="command-truth-row"><span>DEX Screener Discovery</span><b id="commandDexStatus">PENDING</b></div>
+   <div class="command-truth-row"><span>Token-Paare geladen</span><b id="commandTokenTotal">—</b></div>
+   <div class="command-truth-row"><span>Smart-Money-Klassifizierung</span><b class="truth-partial">NOT AVAILABLE</b></div>
+   <div class="command-truth-row"><span>Wallet-Signale</span><b class="truth-partial">NOT CLASSIFIED</b></div>
+   <p class="command-footnote">Nicht verfügbare Daten werden ausdrücklich als solche ausgewiesen.</p>
+  </article>
+ </div>
+</section>
 <section class="section" id="view-discovery" data-view="discovery"><div class="sectionhead"><h2>Coin Discovery · Solana</h2><span class="tag" id="feedStatus">WIRD GELADEN</span></div><div class="panel"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin-bottom:13px"><input id="coinSearch" type="search" placeholder="Name, Symbol oder Mint suchen" aria-label="Token suchen"><select id="sortCoins" aria-label="Sortierung" style="background:#090f1b;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px"><option value="liquidity">Liquidität ↓</option><option value="volume">Volumen 24h ↓</option><option value="buys">Käufe 24h ↓</option><option value="age">Neueste zuerst</option><option value="marketcap">Market Cap ↓</option></select><select id="minLiquidity" aria-label="Mindestliquidität" style="background:#090f1b;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px"><option value="0">Jede Liquidität</option><option value="1000">Mind. $1.000</option><option value="5000">Mind. $5.000</option><option value="10000">Mind. $10.000</option><option value="50000">Mind. $50.000</option></select><select id="minVolume" aria-label="Mindestvolumen" style="background:#090f1b;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px"><option value="0">Jedes Volumen</option><option value="1000">Mind. $1.000</option><option value="10000">Mind. $10.000</option><option value="50000">Mind. $50.000</option><option value="100000">Mind. $100.000</option></select></div><div id="coinFilterSummary" class="muted" style="font-size:11px;margin-bottom:10px">Filter werden geladen …</div><div class="tablewrap"><table><thead><tr><th>Token</th><th>Preis USD</th><th>Liquidität</th><th>Volumen 24h</th><th>Market Cap / FDV</th><th>Pair-Alter</th><th>Käufe / Verkäufe</th><th>Risiko</th><th>Warnsignale</th><th>Status</th></tr></thead><tbody id="tokenRows"><tr><td colspan="10" class="muted">Lade Marktdaten …</td></tr></tbody></table></div><div id="securityResult" role="status" aria-live="polite" aria-atomic="true" class="muted" style="font-size:12px;margin-top:12px"></div><div class="muted" id="feedNote" style="font-size:11px;margin-top:12px">Quelle und Datenzeit werden nach Abruf angezeigt.</div></div></section>
 <section class="section" id="view-wallets" data-view="wallets"><div class="sectionhead"><h2>Smart Money DNA · Wallet Inspector</h2><span class="tag">SOLANA RPC · PARTIAL</span></div><div class="panel"><p class="muted" style="font-size:12px;margin-top:0">Wallet-Adressen speichern und die letzten Transaktionen prüfen. Rohdaten statt erfundener Smart-Money-Scores.</p><form id="walletForm" style="display:flex;gap:8px;flex-wrap:wrap"><label class="sr-only" for="walletAddress">Solana Wallet-Adresse</label><input id="walletAddress" aria-label="Solana Wallet-Adresse" autocomplete="off" spellcheck="false" placeholder="Solana Wallet-Adresse" required minlength="32" maxlength="44" style="flex:1;min-width:180px"><button type="button" class="pasteButton" data-paste="walletAddress" aria-label="Wallet-Adresse aus Zwischenablage einfügen">Einfügen</button><button type="submit">Wallet analysieren</button></form><div id="walletResult" role="status" aria-live="polite" aria-atomic="true" class="muted wallet-output" style="font-size:12px;margin-top:14px">Noch keine Wallet analysiert.</div><div id="watchlist" style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px"></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px"><button type="button" id="networkButton" style="background:#263a56;color:var(--text)">Wallet-Netzwerk analysieren</button><span class="muted" style="font-size:11px">Vergleicht bis zu 5 gespeicherte Wallets</span></div><div id="networkResult" role="status" aria-live="polite" aria-atomic="true" class="muted" style="font-size:12px;margin-top:12px"></div>
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px"><button type="button" id="capitalFlowButton" style="background:#263a56;color:var(--text)">Kapitalflüsse bewerten</button><span class="muted" style="font-size:11px">Historische USD-Näherung für die 5 größten beobachteten Token-Flüsse</span></div><div id="capitalFlowResult" role="status" aria-live="polite" aria-atomic="true" class="muted" style="font-size:12px;margin-top:12px"></div>
@@ -448,6 +513,36 @@ function renderDiscovery(){
  document.getElementById("coinFilterSummary").textContent=filtered.length+" von "+discoveryTokens.length+" Token · Filter wirken auf die aktuell geladenen Treffer";
  rows.innerHTML=filtered.length?filtered.map(t=>'<tr><td><a target="_blank" rel="noopener" href="'+esc(t.url||("https://solscan.io/token/"+t.address))+'"><b>'+esc(t.name||"Unbekannt")+'</b> ↗</a><br><span class="muted">'+esc(t.symbol||((t.address||"").slice(0,8)+"…"))+'</span></td><td>'+fmt(t.priceUsd)+'</td><td>'+money(t.liquidityUsd)+'</td><td>'+money(t.volume24h)+'</td><td>'+(t.marketCapUsd!==null&&t.marketCapUsd!==undefined?'<span>MC '+money(t.marketCapUsd)+'</span>':'<span class="muted">MC —</span>')+'<br><span class="muted">FDV '+money(t.fdvUsd)+'</span>'+'</td><td>'+(t.pairCreatedAt?Math.max(0,Math.floor((Date.now()-t.pairCreatedAt)/3600000))+" h":"—")+'</td><td>'+(t.buys24h??"—")+' / '+(t.sells24h??"—")+'</td><td><b style="color:'+(t.riskLevel==="HIGH"?"var(--red)":t.riskLevel==="ELEVATED"||t.riskLevel==="PARTIAL"?"var(--amber)":t.riskLevel==="LOW"?"var(--green)":"var(--muted)")+'">'+(t.riskScore??"—")+'/100</b><br><span class="muted">'+(t.riskLevel==="HIGH"?"HOCH":t.riskLevel==="ELEVATED"?"ERHÖHT":t.riskLevel==="LOW"?"NIEDRIG":t.riskLevel==="PARTIAL"?"TEILWEISE":"UNBEKANNT")+'</span><br><button type="button" data-security="'+esc(t.address)+'" style="margin-top:6px;padding:6px 8px;font-size:10px;background:#263a56;color:var(--text)">Mint prüfen</button></td><td>'+(t.flags?.length?t.flags.map(esc).join("<br>"):"—")+'</td><td><span class="state">'+(t.hasMarketPair?"LIVE":"PARTIAL")+'</span></td></tr>').join(""):'<tr><td colspan="10" class="muted">Keine Token entsprechen den Filtern.</td></tr>';
 }
+
+function renderCommandCenter(){
+ const radar=document.getElementById("commandRadar");
+ if(!radar)return;
+ const status=document.getElementById("feedStatus")?.textContent||"PENDING";
+ const statusEl=document.getElementById("commandDataStatus");
+ const dexEl=document.getElementById("commandDexStatus");
+ const totalEl=document.getElementById("commandTokenTotal");
+ if(statusEl)statusEl.textContent=status;
+ if(dexEl)dexEl.textContent=status.split(" · ")[0]||"PENDING";
+ if(totalEl)totalEl.textContent=String(discoveryTokens.length);
+ const sorted=[...discoveryTokens].filter(t=>Number.isFinite(Number(t.volume24h))).sort((a,b)=>(Number(b.volume24h)||0)-(Number(a.volume24h)||0)).slice(0,5);
+ const radarCount=document.getElementById("commandRadarCount");
+ if(radarCount)radarCount.textContent=discoveryTokens.length+" PAIRS";
+ radar.innerHTML=sorted.length?sorted.map(t=>'<div class="command-row"><div class="command-row-main"><button type="button" class="command-row-title" data-command-token="'+esc(t.address||"")+'">'+esc(t.symbol||t.name||"Unbekannt")+'</button><span class="command-row-meta">'+esc(t.name||"")+" · Liq. "+money(t.liquidityUsd)+'</span></div><div class="command-row-value">'+money(t.volume24h)+'<span class="command-row-meta">VOL / 24H</span></div></div>').join(""):'<p class="muted">Keine verwertbaren Volumendaten vorhanden. Status: '+esc(status)+'</p>';
+ const signals=document.getElementById("commandSignals");
+ const observations=[];
+ for(const t of discoveryTokens){
+  const buys=Number(t.buys24h),sells=Number(t.sells24h);
+  if(t.riskLevel==="HIGH"||t.riskLevel==="ELEVATED")observations.push({level:t.riskLevel==="HIGH"?"danger":"warn",title:(t.symbol||t.name||"Token")+" · Risiko "+(t.riskScore??"—")+"/100",detail:(Array.isArray(t.flags)&&t.flags.length?t.flags.slice(0,2).join(" · "):"Risikoeinstufung aus Discovery-Daten")});
+  if(Number.isFinite(buys)&&Number.isFinite(sells)&&buys+sells>0&&buys>sells*1.5)observations.push({level:"normal",title:(t.symbol||t.name||"Token")+" · Kaufaktivität höher",detail:buys+" Käufe / "+sells+" Verkäufe in 24h · kein Wallet-Flow-Nachweis"});
+ }
+ const chosen=observations.slice(0,5);
+ signals.innerHTML=chosen.length?chosen.map(x=>'<div class="command-signal"><span class="command-signal-mark '+x.level+'"></span><div><b>'+esc(x.title)+'</b><br><span class="muted">'+esc(x.detail)+'</span></div></div>').join(""):'<p class="muted">Keine definierten Beobachtungen in den geladenen Daten. Das ist kein Beleg für Risikofreiheit.</p>';
+ const wallets=getWallets();
+ const count=document.getElementById("commandWalletCount");
+ if(count)count.textContent=wallets.length;
+ const list=document.getElementById("commandWalletList");
+ if(list)list.innerHTML=wallets.length?wallets.slice(0,4).map(a=>'<div class="command-wallet-item">'+esc(a.slice(0,8)+"…"+a.slice(-6))+'</div>').join("")+(wallets.length>4?'<span class="muted">+'+(wallets.length-4)+' weitere</span>':""):'<p class="muted">Noch keine Wallets gespeichert.</p>';
+}
 async function inspectTokenSecurity(address){
  const out=document.getElementById("securityResult");out.textContent="Prüfe Mint Authority, Freeze Authority, Holder und LP-Kontrolle …";
  try{
@@ -468,7 +563,7 @@ async function inspectTokenSecurity(address){
 }
 document.getElementById("tokenRows").addEventListener("click",e=>{const b=e.target.closest("[data-security]");if(b)inspectTokenSecurity(b.dataset.security);});
 ["coinSearch","sortCoins","minLiquidity","minVolume"].forEach(id=>document.getElementById(id).addEventListener(id==="coinSearch"?"input":"change",renderDiscovery));
-async function loadDiscovery(){const badge=document.getElementById("connection"),state=document.getElementById("feedStatus"),note=document.getElementById("feedNote");try{const r=await fetch("/api/discovery",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"API-Fehler");discoveryTokens=Array.isArray(d.tokens)?d.tokens:[];badge.textContent="● API VERBUNDEN";state.textContent=d.status+" · "+new Date(d.timestamp).toLocaleTimeString("de-DE");document.getElementById("tokenCount").textContent=discoveryTokens.length;document.getElementById("tokenState").textContent="DEX Screener · "+d.status;renderDiscovery();note.textContent=(d.note||"")+" Quelle: "+d.source+". Abruf: "+new Date(d.timestamp).toLocaleString("de-DE");}catch(e){badge.textContent="● API NICHT ERREICHBAR";state.textContent="UNAVAILABLE";document.getElementById("tokenState").textContent="Datenquelle nicht erreichbar";document.getElementById("tokenRows").innerHTML='<tr><td colspan="10" style="color:var(--red);padding:14px">Keine Live-Daten verfügbar. API-Endpunkt oder Deployment prüfen.</td></tr>';note.textContent=e.message;}}
+async function loadDiscovery(){const badge=document.getElementById("connection"),state=document.getElementById("feedStatus"),note=document.getElementById("feedNote");try{const r=await fetch("/api/discovery",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"API-Fehler");discoveryTokens=Array.isArray(d.tokens)?d.tokens:[];badge.textContent="● API VERBUNDEN";state.textContent=d.status+" · "+new Date(d.timestamp).toLocaleTimeString("de-DE");document.getElementById("tokenCount").textContent=discoveryTokens.length;document.getElementById("tokenState").textContent="DEX Screener · "+d.status;renderDiscovery();renderCommandCenter();note.textContent=(d.note||"")+" Quelle: "+d.source+". Abruf: "+new Date(d.timestamp).toLocaleString("de-DE");}catch(e){badge.textContent="● API NICHT ERREICHBAR";state.textContent="UNAVAILABLE";document.getElementById("tokenState").textContent="Datenquelle nicht erreichbar";document.getElementById("tokenRows").innerHTML='<tr><td colspan="10" style="color:var(--red);padding:14px">Keine Live-Daten verfügbar. API-Endpunkt oder Deployment prüfen.</td></tr>';note.textContent=e.message;}}
 async function checkHealth(){
  const out=document.getElementById("healthResult"),button=document.getElementById("healthButton");
  if(!out)return;
@@ -837,7 +932,15 @@ document.querySelectorAll("[data-paste]").forEach(button=>{
 bindBusySubmit("walletForm","walletAddress",async address=>{setActiveView("wallets");await inspectWallet(address);});
 function setActiveView(view){document.querySelectorAll("section[data-view]").forEach(section=>{section.hidden=section.dataset.view!==view;});document.querySelectorAll(".navtab").forEach(tab=>{const active=tab.dataset.target===view;tab.classList.toggle("active",active);tab.setAttribute("aria-current",active?"page":"false");});}
 document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
-setActiveView("discovery");
+document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
+document.getElementById("main-content").addEventListener("click",event=>{
+ const nav=event.target.closest("[data-command-view]");
+ const token=event.target.closest("[data-command-token]");
+ if(nav){setActiveView(nav.dataset.commandView);return;}
+ if(token){const search=document.getElementById("coinSearch");setActiveView("discovery");if(search){search.value=token.dataset.commandToken;renderDiscovery();}return;}
+});
+setActiveView("overview");
 loadDiscovery();
 renderWatchlist();
+renderCommandCenter();
 </script></body></html>
