@@ -93,3 +93,15 @@ test("Cloudflare deployment pins Wrangler v4 for rate-limit binding support",()=
  assert.match(workflow,/uses: cloudflare\/wrangler-action@v4/);
  assert.match(workflow,/wranglerVersion: ["']4\./);
 });
+
+
+test("intelligence command center uses tactical olive palette and terminal styling",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/--bg:#090d0a/);
+ assert.match(html,/--green:#a8c66c/);
+ assert.match(html,/Liberation Mono/);
+ assert.match(html,/linear-gradient\(rgba\(142,160,111/);
+ assert.match(html,/\.navtab\.active/);
+ assert.match(html,/@media\(max-width:760px\)/);
+ assert.match(html,/prefers-reduced-motion:reduce/);
+});
