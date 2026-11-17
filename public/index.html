@@ -134,6 +134,145 @@ footer{border-top:1px solid rgba(132,162,201,.12);padding-top:16px}
  .module,.navtab,button,input,select,textarea{transition:none!important}
 }
 
+
+/* Intelligence Command Center · tactical visual system */
+:root{
+ --bg:#090d0a;--panel:#141a13;--line:#394331;--text:#e3e8d8;--muted:#929b83;
+ --green:#a8c66c;--blue:#9aa88a;--amber:#d7a34b;--red:#c65d4b;
+ --surface-raised:#20291b;--surface-soft:#10160f;--radius-lg:7px;--radius-md:5px;
+ --shadow-panel:0 12px 34px rgba(0,0,0,.38);--glow-green:0 0 20px rgba(168,198,108,.08)
+}
+html{scroll-behavior:smooth}
+body{
+ background:
+  linear-gradient(rgba(142,160,111,.035) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(142,160,111,.035) 1px,transparent 1px),
+  radial-gradient(ellipse at 50% -15%,rgba(86,105,54,.2),transparent 45%),
+  #090d0a;
+ background-size:32px 32px,32px 32px,auto,auto;
+ color:var(--text);font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+ letter-spacing:.012em
+}
+body:before{
+ content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+ background:linear-gradient(90deg,transparent 0,rgba(0,0,0,.12) 50%,transparent 100%);
+ opacity:.45
+}
+header,main{position:relative;z-index:1}
+header{
+ min-height:66px;padding:13px clamp(14px,3.5vw,46px);
+ background:rgba(9,13,10,.94);border-bottom:1px solid #536044;
+ box-shadow:0 5px 25px rgba(0,0,0,.4);backdrop-filter:blur(14px)
+}
+.brand{font-size:12px;letter-spacing:.16em;text-transform:uppercase}
+.brand:before{content:"▣ ";color:var(--green)}
+.brand span{color:var(--green);font-weight:900}
+.status,.tag,.state{
+ border:1px solid #536044;border-radius:3px;background:#171e13;
+ color:#b8c39f;padding:5px 9px;font-size:10px;letter-spacing:.11em;
+ text-transform:uppercase;font-family:inherit
+}
+main{max-width:1540px;padding:30px clamp(14px,3.5vw,46px) 65px}
+.eyebrow{color:var(--green);font-size:10px;letter-spacing:.24em}
+h1{
+ font-size:clamp(29px,4.2vw,47px);line-height:1.12;letter-spacing:-.035em;
+ text-transform:uppercase;font-weight:850
+}
+.sub{color:#a4ad96;max-width:850px;font-size:12px;line-height:1.8}
+main>.grid{gap:10px;margin-top:22px}
+.metric,.panel{
+ background:linear-gradient(145deg,rgba(24,31,20,.97),rgba(15,21,14,.99));
+ border:1px solid #3d4932;border-radius:5px;box-shadow:var(--shadow-panel)
+}
+.metric{min-height:104px;padding:15px 16px;position:relative}
+.metric:before{
+ content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+ background:var(--green);opacity:.7
+}
+.metric:after{content:none}
+.metric small{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#a4ad96}
+.metric strong{font-size:24px;letter-spacing:-.025em;font-variant-numeric:tabular-nums;color:#edf2e3}
+.metric em{font-size:10px;color:#b5a06c;line-height:1.5}
+.mainnav{
+ top:65px;gap:5px;padding:8px;margin:18px 0 6px;
+ border:1px solid #46513a;border-radius:4px;background:rgba(12,17,11,.96);
+ box-shadow:0 9px 28px rgba(0,0,0,.35)
+}
+.navtab{
+ min-height:43px;border:1px solid transparent;border-radius:3px;
+ background:#171e14;color:#a2aa94;font-family:inherit;
+ font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+ transition:background .14s ease,border-color .14s ease,color .14s ease
+}
+.navtab:before{content:"// ";color:#667354}
+.navtab:hover{background:#252f1c;color:#e8eddf;border-color:#596748}
+.navtab.active{
+ background:#29351d;color:#c2df83;border-color:#819a50;
+ box-shadow:inset 0 -2px 0 #a8c66c,0 0 18px rgba(168,198,108,.07)
+}
+.section{margin-top:27px;scroll-margin-top:135px}
+.sectionhead h2{font-size:13px;letter-spacing:.09em;text-transform:uppercase}
+.sectionhead h2:before{content:"[ ";color:var(--green)}
+.sectionhead h2:after{content:" ]";color:var(--green)}
+.panel{padding:clamp(13px,2vw,20px)}
+.modules{gap:10px}
+.module{
+ min-height:138px;border-radius:5px;position:relative;
+ background:linear-gradient(145deg,#1a2316,#11180f);
+ border:1px solid #3e4a32;transition:border-color .15s ease,background .15s ease
+}
+.module:before{
+ content:"";position:absolute;top:0;right:0;width:26px;height:26px;
+ border-top:1px solid #78885a;border-right:1px solid #78885a;opacity:.65
+}
+.module:hover{transform:none;border-color:#91a95c;background:#202b19;box-shadow:0 0 18px rgba(168,198,108,.08)}
+.symbol{font-size:17px;color:var(--green)}
+.module h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.module p{font-size:10px;line-height:1.7;color:#a1aa93}
+.tablewrap{
+ border:1px solid #3d4932;border-radius:4px;background:rgba(7,11,7,.55);
+ scrollbar-color:#596a43 #11180f
+}
+table{font-family:inherit;font-size:10px}
+th{
+ position:sticky;top:0;background:#20291a;color:#bdc9a7;
+ font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:11px 9px;
+ border-bottom:1px solid #64734d
+}
+td{padding:10px 9px;border-bottom:1px solid rgba(108,125,82,.2);font-variant-numeric:tabular-nums}
+tbody tr:hover{background:rgba(168,198,108,.055)}
+td a{color:#c1dc82;text-decoration:none}
+input,select,textarea{
+ background:#0c120b;border:1px solid #4b583d;border-radius:3px;
+ color:#e4ead9;font-family:inherit;font-size:12px
+}
+input:focus,select:focus,textarea:focus{border-color:#a8c66c;box-shadow:0 0 0 2px rgba(168,198,108,.13)}
+button{
+ border-radius:3px;font-family:inherit;font-size:10px;font-weight:900;
+ letter-spacing:.09em;text-transform:uppercase
+}
+button:not(:disabled):hover{filter:brightness(1.13);box-shadow:0 0 15px rgba(168,198,108,.1)}
+.truth div{background:#10170e;border:1px solid #3d4932;border-radius:3px}
+.notice{border:1px solid #8b6935;background:#241d11;border-radius:3px;color:#e3c27c}
+footer{border-top:1px solid #3d4932;padding-top:14px}
+.wallet-output .metric-action{border-radius:4px;background:#182116}
+.wallet-output .metric-action[aria-expanded=true]{border-color:#a8c66c;background:#202b19}
+.wallet-metric-detail{border-color:#829653;border-radius:4px;background:#111a0e}
+.swap-flow{border-color:#3d4932;border-radius:4px;background:#0d140b}
+@media(min-width:1100px){main>.grid{grid-template-columns:repeat(4,minmax(0,1fr))}.mainnav{max-width:700px}}
+@media(max-width:760px){
+ main{padding-top:22px}.mainnav{top:59px;padding:6px;margin-top:13px}
+ .navtab{min-width:83px;font-size:9px;padding:9px 10px}
+ .section{margin-top:23px}.metric{min-height:94px;padding:12px}
+ .metric strong{font-size:21px}.panel{border-radius:4px}
+}
+@media(max-width:420px){
+ h1{font-size:28px}.sub{font-size:11px}.mainnav{gap:4px}
+ .navtab{min-width:75px;padding:8px 8px;font-size:8px}
+ .metric small{font-size:8px}.metric strong{font-size:19px}
+}
+@media(prefers-reduced-motion:reduce){.module,.navtab,button,input,select,textarea{transition:none!important}}
+
 </style></head><body>
 <a class="skip-link" href="#main-content">Zum Inhalt springen</a><header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status" id="connection">● API WIRD GEPRÜFT</div></header>
 <main id="main-content" tabindex="-1"><div class="eyebrow">Solana intelligence terminal</div><h1>Read the flow.<br>Understand the market.</h1><p class="sub">Analyse-Terminal für Solana-Meme-Coins. Marktaktivität und Wallet-Bewegungen mit klarer Kennzeichnung der Datenqualität.</p>
