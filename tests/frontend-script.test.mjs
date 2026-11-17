@@ -86,3 +86,10 @@ test("dashboard visual system keeps responsive layouts and accessible focus stat
  assert.match(html,/button:focus-visible/);
  assert.match(html,/prefers-reduced-motion:reduce/);
 });
+
+
+test("Cloudflare deployment pins Wrangler v4 for rate-limit binding support",()=>{
+ const workflow=readFileSync(new URL("../.github/workflows/deploy-cloudflare.yml",import.meta.url),"utf8");
+ assert.match(workflow,/uses: cloudflare\\/wrangler-action@v4/);
+ assert.match(workflow,/wranglerVersion: ["']4\\./);
+});
