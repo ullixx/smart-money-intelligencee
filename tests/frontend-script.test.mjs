@@ -116,3 +116,14 @@ test("tactical command center includes subtle motion and reduced-motion safeguar
  assert.match(html,/@media\(prefers-reduced-motion:reduce\)/);
  assert.match(html,/body:before[\s\S]*animation:smi-scanline/);
 });
+
+test("desktop command center uses persistent tactical rail and preserves mobile navigation",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/grid-template-columns:228px minmax\(0,1fr\)/);
+ assert.match(html,/"OPERATIONS \/ MODULES"/);
+ assert.match(html,/main#main-content>\.mainnav\{grid-column:1/);
+ assert.match(html,/main#main-content>section\[data-view\]\{grid-column:2/);
+ assert.match(html,/@media\(max-width:760px\)[\s\S]*main#main-content\{display:block\}/);
+ assert.match(html,/main#main-content>\.mainnav:before\{display:none\}/);
+ assert.match(html,/prefers-reduced-motion:reduce/);
+});
