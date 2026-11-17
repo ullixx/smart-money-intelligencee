@@ -166,3 +166,14 @@ test("wallet network relation map only draws observed cluster links",()=>{
  assert.match(html,/beweisen weder gemeinsame Kontrolle noch koordinierte Käufe/);
  assert.match(html,/renderNetworkEvidenceMap\(d\)/);
 });
+
+test("smart money radar uses existing RPC network endpoint and labels sample limitations",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/id="smartMoneyRadarButton"/);
+ assert.match(html,/async function runSmartMoneyRadar\(\)/);
+ assert.match(html,/\/api\/network\?wallets=/);
+ assert.match(html,/data\.sharedFunders\|\|\[\]/);
+ assert.match(html,/TIME_OVERLAP_ONLY|evidenceLevel/);
+ assert.match(html,/Abdeckung/);
+ assert.match(html,/mindestens zwei gespeicherte Wallets erforderlich/i);
+});
