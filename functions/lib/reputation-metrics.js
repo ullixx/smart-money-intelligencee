@@ -1,7 +1,7 @@
 const round = (value, digits = 8) => Number.isFinite(value) ? Number(value.toFixed(digits)) : null;
 
 function parseRawAmount(event) {
-  if (!/^\\d+$/.test(String(event?.rawAmount ?? ""))) return null;
+  if (!/^\d+$/.test(String(event?.rawAmount ?? ""))) return null;
   if (!Number.isInteger(event?.decimals) || event.decimals < 0 || event.decimals > 255) return null;
   try { return { raw: BigInt(String(event.rawAmount)), decimals: event.decimals }; }
   catch { return null; }
