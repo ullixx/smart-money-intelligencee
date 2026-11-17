@@ -151,6 +151,7 @@ test("matches raw token units smaller than the former floating-point epsilon", (
   assert.equal(token.closedLots, 1);
   assert.equal(token.openLots, 0);
   assert.equal(token.quantityPrecision, "RAW_BIGINT");
+  assert.equal(token.matchedRawAmount, "1");
   assert.equal(token.matchedTokenAmount, 1e-15);
 });
 
@@ -164,7 +165,8 @@ test("matches large raw quantities exactly across partial FIFO sells", () => {
   assert.equal(token.closedLots, 2);
   assert.equal(token.openLots, 0);
   assert.equal(token.quantityPrecision, "RAW_BIGINT");
-  assert.equal(token.matchedTokenAmount, 9007199.254740993);
+  assert.equal(token.matchedRawAmount, "9007199254740993");
+  assert.ok(Math.abs(token.matchedTokenAmount - 9007199.254740993) < 0.00000001);
 });
 
 test("falls back safely when raw token metadata is incomplete or inconsistent", () => {
