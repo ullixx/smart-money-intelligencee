@@ -13,3 +13,13 @@ namespace_id = "91732026"
   [ratelimits.simple]
   limit = 60
   period = 60
+
+# Isolated namespace for Cloudflare dashboard preview builds.
+# Keep this separate from the production rate-limit namespace above.
+[[previews.ratelimits]]
+name = "API_RATE_LIMITER"
+namespace_id = "91732027"
+
+  [previews.ratelimits.simple]
+  limit = 60
+  period = 60
