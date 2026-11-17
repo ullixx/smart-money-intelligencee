@@ -466,6 +466,19 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
 .network-evidence-map .map-note{font-size:10px;color:#9eac8a;line-height:1.5;margin:6px 0 0}
 @media(max-width:520px){.wallet-dossier-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.wallet-dossier-stat{padding:7px}.wallet-dossier-stat b{font-size:14px}.wallet-timeline{padding:9px}}
 
+
+.command-radar-intel{grid-column:1/-1}
+#smartMoneyRadarResult{margin-top:10px}
+.radar-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:8px 0}
+.radar-summary>div{padding:9px;background:#0c140b;border:1px solid #3b4a2e;border-radius:5px}
+.radar-summary small{display:block;color:#9eac8a;font:700 9px "Liberation Mono",monospace}
+.radar-summary b{display:block;margin-top:4px;color:#dce8cb;font:800 18px "Liberation Mono",monospace}
+.radar-result-row{padding:10px 0;border-bottom:1px solid #303d28;font-size:11px}
+.radar-result-row:last-child{border-bottom:0}
+.radar-result-row b{color:#dbe8c9}
+.radar-result-row a{color:#b8d58b}
+@media(max-width:760px){.command-radar-intel{grid-column:auto}.radar-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
 </style></head><body>
 <a class="skip-link" href="#main-content">Zum Inhalt springen</a><header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status" id="connection">● API WIRD GEPRÜFT</div></header>
 <main id="main-content" tabindex="-1"><div class="eyebrow">Solana intelligence terminal</div><h1>Read the flow.<br>Understand the market.</h1><p class="sub">Analyse-Terminal für Solana-Meme-Coins. Marktaktivität und Wallet-Bewegungen mit klarer Kennzeichnung der Datenqualität.</p>
@@ -483,6 +496,12 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
    <div class="command-panel-head"><div><span class="command-kicker">02 / SIGNAL MONITOR</span><h3>Beobachtungen</h3></div><span class="command-live">DATA-DRIVEN</span></div>
    <div id="commandSignals" class="command-list" aria-live="polite"><p class="muted">Warte auf validierte Marktdaten …</p></div>
    <p class="command-footnote">Beobachtungen aus geladenen DEX-Daten. Keine Kaufempfehlungen und keine Smart-Money-Zuordnung.</p>
+  </article>
+  <article class="panel command-radar-intel">
+   <div class="command-panel-head"><div><span class="command-kicker">03 / SMART MONEY RADAR</span><h3>Wallet-Koinzidenzen</h3></div><span class="command-live">RPC SAMPLE</span></div>
+   <p class="command-footnote">Sucht zeitliche Token-Überschneidungen und gemeinsame Funding-Absender unter deinen gespeicherten Wallets.</p>
+   <button type="button" class="command-link" id="smartMoneyRadarButton">Radar starten ↗</button>
+   <div id="smartMoneyRadarResult" class="command-list" aria-live="polite"><p class="muted">Manuelle Analyse · mindestens zwei gespeicherte Wallets erforderlich.</p></div>
   </article>
   <article class="panel command-wallets">
    <div class="command-panel-head"><div><span class="command-kicker">03 / WALLET FILES</span><h3>Beobachtete Wallets</h3></div><span class="command-live">LOCAL STORAGE</span></div>
@@ -535,6 +554,24 @@ function renderDiscovery(){
  });
  document.getElementById("coinFilterSummary").textContent=filtered.length+" von "+discoveryTokens.length+" Token · Filter wirken auf die aktuell geladenen Treffer";
  rows.innerHTML=filtered.length?filtered.map(t=>'<tr><td><a target="_blank" rel="noopener" href="'+esc(t.url||("https://solscan.io/token/"+t.address))+'"><b>'+esc(t.name||"Unbekannt")+'</b> ↗</a><br><span class="muted">'+esc(t.symbol||((t.address||"").slice(0,8)+"…"))+'</span></td><td>'+fmt(t.priceUsd)+'</td><td>'+money(t.liquidityUsd)+'</td><td>'+money(t.volume24h)+'</td><td>'+(t.marketCapUsd!==null&&t.marketCapUsd!==undefined?'<span>MC '+money(t.marketCapUsd)+'</span>':'<span class="muted">MC —</span>')+'<br><span class="muted">FDV '+money(t.fdvUsd)+'</span>'+'</td><td>'+(t.pairCreatedAt?Math.max(0,Math.floor((Date.now()-t.pairCreatedAt)/3600000))+" h":"—")+'</td><td>'+(t.buys24h??"—")+' / '+(t.sells24h??"—")+'</td><td><b style="color:'+(t.riskLevel==="HIGH"?"var(--red)":t.riskLevel==="ELEVATED"||t.riskLevel==="PARTIAL"?"var(--amber)":t.riskLevel==="LOW"?"var(--green)":"var(--muted)")+'">'+(t.riskScore??"—")+'/100</b><br><span class="muted">'+(t.riskLevel==="HIGH"?"HOCH":t.riskLevel==="ELEVATED"?"ERHÖHT":t.riskLevel==="LOW"?"NIEDRIG":t.riskLevel==="PARTIAL"?"TEILWEISE":"UNBEKANNT")+'</span><br><button type="button" data-security="'+esc(t.address)+'" style="margin-top:6px;padding:6px 8px;font-size:10px;background:#263a56;color:var(--text)">Mint prüfen</button></td><td>'+(t.flags?.length?t.flags.map(esc).join("<br>"):"—")+'</td><td><span class="state">'+(t.hasMarketPair?"LIVE":"PARTIAL")+'</span></td></tr>').join(""):'<tr><td colspan="10" class="muted">Keine Token entsprechen den Filtern.</td></tr>';
+}
+
+
+async function runSmartMoneyRadar(){
+ const out=document.getElementById("smartMoneyRadarResult"),button=document.getElementById("smartMoneyRadarButton");
+ const wallets=getWallets().slice(0,5);
+ if(wallets.length<2){out.textContent="Mindestens zwei gespeicherte Wallets hinzufügen, um Überschneidungen zu prüfen.";return;}
+ button.disabled=true;button.textContent="Analysiere RPC-Stichprobe …";out.textContent="Lade aktuelle Signaturen und prüfe Token-Bewegungen …";
+ try{
+  const response=await fetch("/api/network?wallets="+encodeURIComponent(wallets.join(",")),{cache:"no-store"});
+  const data=await response.json();if(!response.ok)throw new Error(data.detail||data.error||"Netzwerkanalyse fehlgeschlagen");
+  const clusters=data.clusters||[],funders=data.sharedFunders||[],shared=data.sharedTokens||[];
+  out.innerHTML='<div class="radar-summary"><div><small>WALLETS</small><b>'+esc(data.walletsChecked??wallets.length)+'</b></div><div><small>ÜBERSCHNEIDUNGEN</small><b>'+clusters.length+'</b></div><div><small>FUNDING-LINKS</small><b>'+funders.length+'</b></div></div><div class="command-footnote">'+esc(data.status||"PARTIAL")+' · '+esc(data.transactionsAnalysed??0)+'/'+esc(data.transactionsRequested??0)+' Transaktionen · Abdeckung '+esc(data.coverage??"—")+'%</div>'+
+  (clusters.length?'<h4 class="command-kicker">ZEITLICHE TOKEN-ÜBERSCHNEIDUNGEN</h4>'+clusters.slice(0,5).map(c=>'<div class="radar-result-row"><b>'+esc(c.walletCount)+' Wallets · '+esc(c.mint.slice(0,7)+"…"+c.mint.slice(-6))+'</b><br><span class="muted">'+esc(c.evidenceLevel)+' · '+esc(c.windowMinutes)+' Min. · '+esc(c.buyCandidateCount)+' Kaufkandidaten</span><br><span class="muted">'+esc(c.interpretation)+'</span><br><a target="_blank" rel="noopener" href="https://solscan.io/token/'+encodeURIComponent(c.mint)+'">Token in Solscan ↗</a></div>').join(""):'<p class="muted">Keine zeitlichen Token-Überschneidungen in der geprüften Stichprobe.</p>')+
+  (funders.length?'<h4 class="command-kicker" style="margin-top:12px">GEMEINSAME FUNDING-ABSENDER</h4>'+funders.slice(0,3).map(f=>'<div class="radar-result-row">'+esc(f.walletCount)+' Wallets · '+esc(f.transfers)+' Transfers · '+esc(fmt(f.totalSol))+' SOL<br><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(f.funder)+'">'+esc(f.funder.slice(0,8)+"…"+f.funder.slice(-6))+' ↗</a></div>').join(""):'')+
+  '<p class="command-footnote">'+esc(data.note||"")+'</p>';
+ }catch(error){out.textContent="UNAVAILABLE · "+error.message;}
+ finally{button.disabled=false;button.textContent="Radar erneut starten ↗";}
 }
 
 function renderCommandCenter(){
@@ -990,6 +1027,7 @@ bindBusySubmit("walletForm","walletAddress",async address=>{setActiveView("walle
 function setActiveView(view){document.querySelectorAll("section[data-view]").forEach(section=>{section.hidden=section.dataset.view!==view;});document.querySelectorAll(".navtab").forEach(tab=>{const active=tab.dataset.target===view;tab.classList.toggle("active",active);tab.setAttribute("aria-current",active?"page":"false");});}
 document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
 document.querySelector(".mainnav").addEventListener("click",event=>{const tab=event.target.closest(".navtab");if(tab)setActiveView(tab.dataset.target);});
+document.getElementById("smartMoneyRadarButton").addEventListener("click",runSmartMoneyRadar);
 document.getElementById("main-content").addEventListener("click",event=>{
  const nav=event.target.closest("[data-command-view]");
  const token=event.target.closest("[data-command-token]");
