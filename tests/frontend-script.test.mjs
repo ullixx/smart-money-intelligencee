@@ -105,3 +105,14 @@ test("intelligence command center uses tactical olive palette and terminal styli
  assert.match(html,/@media\(max-width:760px\)/);
  assert.match(html,/prefers-reduced-motion:reduce/);
 });
+
+
+test("tactical command center includes subtle motion and reduced-motion safeguards",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/@keyframes smi-scanline/);
+ assert.match(html,/@keyframes smi-status-pulse/);
+ assert.match(html,/@keyframes smi-panel-sweep/);
+ assert.match(html,/header \.status\{animation:smi-status-pulse/);
+ assert.match(html,/@media\(prefers-reduced-motion:reduce\)/);
+ assert.match(html,/body:before[\s\S]*animation:smi-scanline/);
+});
