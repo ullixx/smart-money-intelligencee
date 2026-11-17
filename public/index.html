@@ -527,6 +527,8 @@ main{max-width:1500px;padding:22px clamp(14px,3vw,42px) 65px}
 @media(max-width:390px){.hero-side{display:none}.hero-copy .sub{max-width:100%}.command-nav .navtab{padding:9px 7px}.command-nav .navtab span{display:none}}
 @media(prefers-reduced-motion:no-preference){@keyframes smi-beacon{0%,100%{opacity:1}50%{opacity:.35}}@keyframes smi-hero-scan{0%{transform:translateX(-100%)}45%,100%{transform:translateX(120%)}}@keyframes smi-rotate{to{transform:rotate(360deg)}}}
 @media(prefers-reduced-motion:reduce){.command-hero:before,.hero-reticle:after,.topbar-node i{animation:none!important}}
+
+.command-history{grid-column:1/-1}.history-wallet{padding:12px 0;border-bottom:1px solid #35422c}.history-wallet:last-of-type{border-bottom:0}.history-wallet-head{display:flex;justify-content:space-between;gap:8px;align-items:center;font:700 11px "Liberation Mono",monospace;color:#dce8cb}.history-wallet-head span{font-size:9px;color:#d9a64d}.history-wallet-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-top:9px}.history-wallet-grid>div{padding:9px;background:#0b120b;border:1px solid #35432a;min-width:0}.history-wallet-grid small{display:block;font:700 8px "Liberation Mono",monospace;color:#9eac8a}.history-wallet-grid strong{display:block;font:800 16px "Liberation Mono",monospace;color:#e0ebcf;margin-top:4px;overflow-wrap:anywhere}.history-wallet-meta{font:9px "Liberation Mono",monospace;color:#9eac8a;margin-top:8px}@media(max-width:760px){.command-history{grid-column:auto}.history-wallet-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style></head><body>
 <a class="skip-link" href="#main-content">Zum Inhalt springen</a>
 <header class="command-topbar">
@@ -589,6 +591,12 @@ main{max-width:1500px;padding:22px clamp(14px,3vw,42px) 65px}
    <div class="command-wallet-count"><strong id="commandWalletCount">0</strong><span>gespeicherte Adressen</span></div>
    <div id="commandWalletList" class="command-wallet-list"><p class="muted">Noch keine Wallets gespeichert.</p></div>
    <button type="button" class="command-link" data-command-view="wallets">Wallet-Akten öffnen ↗</button>
+  </article>
+  <article class="panel command-history">
+   <div class="command-panel-head"><div><span class="command-kicker">06 / HISTORICAL WALLET DEVELOPMENT</span><h3>Historische Wallet-Entwicklung</h3></div><span class="command-live">FIFO / RPC HISTORY</span></div>
+   <p class="command-footnote">Vergleicht bis zu drei gespeicherte Wallets anhand der vorhandenen historischen FIFO-Auswertung. Je Wallet bis zu drei paginierte RPC-Seiten.</p>
+   <button type="button" class="command-link" id="walletHistoryButton">Wallet-Verlauf analysieren ↗</button>
+   <div id="walletHistoryResult" class="command-list" aria-live="polite"><p class="muted">Manuelle Analyse · gespeicherte Wallets erforderlich.</p></div>
   </article>
   <article class="panel command-truth">
    <div class="command-panel-head"><div><span class="command-kicker">04 / DATA TRUTH</span><h3>Datenlage</h3></div><span class="command-live">SOURCE STATUS</span></div>
@@ -994,6 +1002,41 @@ async function inspectPerformance(before=null){
  }catch(error){out.textContent="UNAVAILABLE · "+error.message;}
 }
 document.getElementById("performanceButton").addEventListener("click",()=>inspectPerformance());
+async function runWalletHistoryComparison(){
+ const out=document.getElementById("walletHistoryResult"),button=document.getElementById("walletHistoryButton");
+ const wallets=getWallets().slice(0,3);
+ if(!wallets.length){out.textContent="Bitte zuerst mindestens eine Wallet speichern.";return;}
+ button.disabled=true;button.textContent="Historien werden verglichen …";
+ out.textContent="Lade historische FIFO-Auswertungen für bis zu drei Wallets. Dies kann einen Moment dauern …";
+ try{
+  const results=[];
+  for(const address of wallets){
+   const response=await fetch("/api/performance?address="+encodeURIComponent(address)+"&pages=3",{cache:"no-store"});
+   const data=await response.json();
+   if(!response.ok)throw new Error(data.error||"Historische Auswertung für "+address.slice(0,7)+" fehlgeschlagen");
+   results.push({address,data});
+  }
+  const moneyValue=value=>value==null||!Number.isFinite(Number(value))?"—":(Number(value)>=0?"+":"")+"$"+fmt(Number(value));
+  const pct=value=>value==null||!Number.isFinite(Number(value))?"—":(Number(value)*100).toFixed(1)+"%";
+  out.innerHTML='<p class="command-footnote">PARTIAL · Solana RPC + DEX Screener + GeckoTerminal · maximal drei Wallets · bis zu drei Historienseiten je Wallet. PnL und Haltezeit sind Schätzungen auf Basis der verfügbaren und bepreisten Bewegungen.</p>'+
+   results.map(({address,data})=>{
+    const x=data.summary||{},h=data.historyPagination||{};
+    const averageDays=x.averageHoldingDays;
+    const scans=h.transactionsScanned??data.signaturesReceived??0;
+    const pageCount=h.pagesFetched??0;
+    const trades=x.closedTrades??0;
+    const coverage=data.coverage??0;
+    return '<div class="history-wallet"><div class="history-wallet-head"><b><a target="_blank" rel="noopener" href="https://solscan.io/account/'+encodeURIComponent(address)+'">'+esc(address.slice(0,8)+"…"+address.slice(-6))+' ↗</a></b><span>'+esc(data.status||"PARTIAL")+'</span></div>'+
+     '<div class="history-wallet-grid"><div><small>GESCHÄTZTER FIFO-PNL</small><strong>'+moneyValue(x.estimatedRealizedPnlUsd)+'</strong></div><div><small>Ø HALTEZEIT</small><strong>'+(averageDays==null?"—":fmt(averageDays)+" Tage")+'</strong></div><div><small>GESCHLOSSENE TRADES</small><strong>'+esc(trades)+'</strong></div><div><small>TRADE-TREFFERQUOTE</small><strong>'+pct(x.winRateClosedTrades??x.fifoLotWinRate)+'</strong></div></div>'+
+     '<div class="history-wallet-meta">'+esc(scans)+' Signaturen · '+esc(pageCount)+' Seiten · '+esc(coverage)+'% Abdeckung · '+esc(x.pricedEvents??0)+' bepreiste Bewegungen / '+esc(x.unpricedEvents??0)+' ohne Preis</div>'+
+     '<p class="command-footnote">'+esc(h.status||data.historyStatus||"HISTORY_PARTIAL")+' · '+esc(data.note||"")+'</p></div>';
+   }).join("")+
+   '<p class="command-footnote">Wichtig: Stichprobenumfang und Preisabdeckung begrenzen die Aussagekraft. Nicht bepreiste Events, offene Lots und fehlende ältere Historie können das Ergebnis verändern. Keine Rangliste und keine bestätigte Profitabilitätsbewertung.</p>';
+ }catch(error){out.textContent="UNAVAILABLE · "+error.message;}
+ finally{button.disabled=false;button.textContent="Wallet-Verlauf erneut analysieren ↗";}
+}
+document.getElementById("walletHistoryButton").addEventListener("click",runWalletHistoryComparison);
+
 async function inspectNetwork(){
  const list=getWallets().slice(0,5),out=document.getElementById("networkResult");
  if(list.length<2){out.textContent="Bitte mindestens zwei Wallets speichern.";return;}
