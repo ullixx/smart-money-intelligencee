@@ -213,28 +213,39 @@ function mergePerformancePages(pages){
  const tokenResults=[];
  for(const [mint,events] of byMint){
   events.sort((a,b)=>a.time-b.time||String(a.signature).localeCompare(String(b.signature)));
-  const lots=[];let pnl=0,matched=0,closedLots=0,wins=0,losses=0,breakeven=0,partialTrades=0,hold=0,unmatched=0,grossProfit=0,grossLoss=0;
-  for(const event of events){
-   const amount=Number(event.amount);
-   if(!Number.isFinite(amount)||amount<=0){unmatched++;continue;}
-   if(event.side==="BUY"){lots.push({amount,price:Number.isFinite(event.priceUsd)?event.priceUsd:null,time:event.time});if(!Number.isFinite(event.priceUsd))unmatched++;continue;}
-   let remaining=amount,tradePnl=0,tradeMatched=0,complete=true,tradeHold=0;
-   while(remaining>1e-12&&lots.length){
-    const lot=lots[0],qty=Math.min(remaining,lot.amount);
+  const rawMeta=events.map(e=>/^\d+$/.test(String(e.rawAmount??""))&&Number.isInteger(e.decimals)&&e.decimals>=0&&e.decimals<=255?{raw:BigInt(String(e.rawAmount)),decimals:e.decimals}:null);
+  const exactMode=rawMeta.every(Boolean)&&rawMeta.every(x=>x.decimals===rawMeta[0].decimals);
+  const decimals=exactMode?rawMeta[0].decimals:null;
+  const toUi=raw=>Number(raw)/(10**decimals);
+  const lots=[];let pnl=0,matched=0,matchedRaw=0n,closedLots=0,wins=0,losses=0,breakeven=0,partialTrades=0,hold=0,unmatched=0,grossProfit=0,grossLoss=0;
+  for(let i=0;i<events.length;i++){
+   const event=events[i],amount=Number(event.amount);
+   if(!exactMode&&(!Number.isFinite(amount)||amount<=0)){unmatched++;continue;}
+   const eventRaw=exactMode?rawMeta[i].raw:null;
+   if(event.side==="BUY"){lots.push(exactMode?{raw:eventRaw,amount:toUi(eventRaw),price:Number.isFinite(event.priceUsd)?event.priceUsd:null,time:event.time}:{amount,price:Number.isFinite(event.priceUsd)?event.priceUsd:null,time:event.time});if(!Number.isFinite(event.priceUsd))unmatched++;continue;}
+   let remainingRaw=exactMode?eventRaw:null,remaining=exactMode?0:amount,tradePnl=0,tradeMatched=0,complete=true,tradeHold=0;
+   const hasRemaining=()=>exactMode?remainingRaw>0n:remaining>1e-12;
+   while(hasRemaining()&&lots.length){
+    const lot=lots[0],qtyRaw=exactMode?(remainingRaw<lot.raw?remainingRaw:lot.raw):null,qty=exactMode?toUi(qtyRaw):Math.min(remaining,lot.amount);
+    if(exactMode)matchedRaw+=qtyRaw;
     if(lot.price==null||!Number.isFinite(event.priceUsd)){unmatched++;complete=false;}
     else{const value=(event.priceUsd-lot.price)*qty;pnl+=value;tradePnl+=value;matched+=qty;tradeMatched+=qty;closedLots++;tradeHold+=Math.max(0,event.time-lot.time)*qty;}
-    remaining-=qty;lot.amount-=qty;if(lot.amount<=1e-12)lots.shift();
+    if(exactMode){remainingRaw-=qtyRaw;lot.raw-=qtyRaw;lot.amount=toUi(lot.raw);if(lot.raw===0n)lots.shift();}
+    else{remaining-=qty;lot.amount-=qty;if(lot.amount<=1e-12)lots.shift();}
    }
-   if(remaining>1e-12){unmatched++;complete=false;}
+   if(hasRemaining()){unmatched++;complete=false;}
    if(tradeMatched>0){if(complete){if(tradePnl>0){wins++;grossProfit+=tradePnl;}else if(tradePnl<0){losses++;grossLoss+=Math.abs(tradePnl);}else breakeven++;hold+=(tradeHold/tradeMatched)/86400;}else partialTrades++;}
   }
   const closedTrades=wins+losses+breakeven;
-  tokenResults.push({mint,buys:events.filter(x=>x.side==="BUY").length,sells:events.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,estimatedRealizedPnlUsd:matched?pnl:null,closedLots,closedTrades,winningTrades:wins,losingTrades:losses,breakevenTrades:breakeven,partialClosedTrades:partialTrades,averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,grossProfitUsd:grossProfit,grossLossUsd:grossLoss,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),winRateClosedTrades:closedTrades?wins/closedTrades:null,averageHoldingDays:closedTrades?hold/closedTrades:null,openLots:lots.length,unmatchedEvents:unmatched,priceSource:events.every(x=>Number.isFinite(x.priceUsd))?"HISTORICAL":"PARTIAL"});
+  tokenResults.push({mint,buys:events.filter(x=>x.side==="BUY").length,sells:events.filter(x=>x.side==="SELL").length,matchedTokenAmount:matched,matchedRawAmount:exactMode?matchedRaw.toString():null,quantityPrecision:exactMode?"RAW_BIGINT":"NUMBER_FALLBACK",decimals:exactMode?decimals:null,estimatedRealizedPnlUsd:matched?pnl:null,closedLots,closedTrades,winningTrades:wins,losingTrades:losses,breakevenTrades:breakeven,partialClosedTrades:partialTrades,averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,grossProfitUsd:grossProfit,grossLossUsd:grossLoss,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),winRateClosedTrades:closedTrades?wins/closedTrades:null,averageHoldingDays:closedTrades?hold/closedTrades:null,openLots:lots.length,unmatchedEvents:unmatched,priceSource:events.every(x=>Number.isFinite(x.priceUsd))?"HISTORICAL":"PARTIAL"});
  }
+ const feeBySignature=new Map();
+ for(const event of unique.values())if(event.feePaidByWallet===true&&event.signature&&Number.isFinite(event.feeSol)&&event.feeSol>=0&&!feeBySignature.has(event.signature))feeBySignature.set(event.signature,event.feeSol);
+ const walletPaidNetworkFeesSol=[...feeBySignature.values()].reduce((n,x)=>n+x,0);
  const closedLots=tokenResults.reduce((n,x)=>n+x.closedLots,0),closedTrades=tokenResults.reduce((n,x)=>n+x.closedTrades,0),wins=tokenResults.reduce((n,x)=>n+x.winningTrades,0),losses=tokenResults.reduce((n,x)=>n+x.losingTrades,0),breakeven=tokenResults.reduce((n,x)=>n+(x.breakevenTrades||0),0),partialTrades=tokenResults.reduce((n,x)=>n+x.partialClosedTrades,0);
  const grossProfit=tokenResults.reduce((n,x)=>n+x.grossProfitUsd,0),grossLoss=tokenResults.reduce((n,x)=>n+x.grossLossUsd,0),realized=tokenResults.reduce((n,x)=>n+(x.estimatedRealizedPnlUsd||0),0);
  const closed=tokenResults.filter(x=>x.estimatedRealizedPnlUsd!==null),priced=[...unique.values()].filter(x=>Number.isFinite(x.priceUsd)).length;
- return {events:unique.size,tokenResults,summary:{tokens:tokenResults.length,pricedEvents:priced,unpricedEvents:unique.size-priced,closedTokens:closed.length,positiveTokenPnlTokens:closed.filter(x=>x.estimatedRealizedPnlUsd>0).length,tokenLevelPositiveShare:closed.length?closed.filter(x=>x.estimatedRealizedPnlUsd>0).length/closed.length:null,closedFifoLots:closedLots,closedTrades,winningTrades:wins,losingTrades:losses,breakevenTrades:breakeven,partialClosedTrades:partialTrades,fifoLotWinRate:closedTrades?wins/closedTrades:null,estimatedRealizedPnlUsd:closedLots?realized:null,grossProfitUsd:grossProfit,grossLossUsd:grossLoss,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,averageHoldingDays:closedTrades?tokenResults.reduce((n,x)=>n+(x.averageHoldingDays||0)*x.closedTrades,0)/closedTrades:null,reputationStatus:closedTrades>=10?"PARTIAL":"INSUFFICIENT_DATA"}};
+ return {events:unique.size,tokenResults,summary:{tokens:tokenResults.length,pricedEvents:priced,unpricedEvents:unique.size-priced,closedTokens:closed.length,positiveTokenPnlTokens:closed.filter(x=>x.estimatedRealizedPnlUsd>0).length,tokenLevelPositiveShare:closed.length?closed.filter(x=>x.estimatedRealizedPnlUsd>0).length/closed.length:null,closedFifoLots:closedLots,closedTrades,winningTrades:wins,losingTrades:losses,breakevenTrades:breakeven,partialClosedTrades:partialTrades,fifoLotWinRate:closedTrades?wins/closedTrades:null,estimatedRealizedPnlUsd:closedLots?realized:null,grossProfitUsd:grossProfit,grossLossUsd:grossLoss,profitFactor:grossLoss>0?grossProfit/grossLoss:(grossProfit>0?"INFINITE":null),averageWinUsd:wins?grossProfit/wins:null,averageLossUsd:losses?grossLoss/losses:null,averageHoldingDays:closedTrades?tokenResults.reduce((n,x)=>n+(x.averageHoldingDays||0)*x.closedTrades,0)/closedTrades:null,walletPaidNetworkFeesSol:Number(walletPaidNetworkFeesSol.toFixed(9)),networkFeeTransactions:feeBySignature.size,networkFeeStatus:feeBySignature.size?"PARTIAL_USD_NOT_VALUED":"UNAVAILABLE",reputationStatus:closedTrades>=10?"PARTIAL":"INSUFFICIENT_DATA"}};
 }
 async function inspectPerformance(before=null){
  const list=getWallets(),out=document.getElementById("performanceResult");
@@ -255,7 +266,7 @@ async function inspectPerformance(before=null){
    '<div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0"><div class="metric"><small>Token geprüft</small><strong>'+summary.tokens+'</strong></div><div class="metric"><small>Historisch bepreist</small><strong>'+summary.pricedEvents+'</strong></div><div class="metric"><small>Unbepreist</small><strong>'+summary.unpricedEvents+'</strong></div><div class="metric"><small>Positive Token-PnL</small><strong>'+pct+'</strong></div></div>'+
    '<div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin:10px 0"><div class="metric"><small>Geschätzter realisierter FIFO-PnL</small><strong>'+pnl+'</strong></div><div class="metric"><small>Trade-Trefferquote</small><strong>'+(summary.fifoLotWinRate==null?"—":(summary.fifoLotWinRate*100).toFixed(1)+"%")+'</strong></div><div class="metric"><small>Wallet Profit Factor</small><strong>'+factor+'</strong></div><div class="metric"><small>Auswertbare Trades</small><strong>'+summary.closedTrades+'</strong><em>'+(summary.reputationStatus==="PARTIAL"?"Stichprobe vorhanden":"Zu wenig Daten für Reputation")+'</em></div></div>'+
    (rows?'<div class="tablewrap"><table><thead><tr><th>Token Mint</th><th>BUYs</th><th>SELLs</th><th>Geschlossene Trades</th><th>Geschätzter FIFO-PnL</th><th>Profit Factor</th><th>Ø Gewinn</th><th>Ø Verlust</th><th>Offene FIFO-Lots</th><th>Nicht zugeordnet</th><th>Kursquelle</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'Keine auswertbaren Token-Bewegungen gefunden.')+
-   '<p class="muted" style="font-size:11px">'+esc(data.note||"")+'</p>'+
+   '<div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:10px 0"><div class="metric"><small>Wallet-bezahlte Netzwerkgebühren</small><strong>'+summary.walletPaidNetworkFeesSol.toFixed(9)+' SOL</strong><em>USD-Bewertung noch nicht enthalten · '+summary.networkFeeTransactions+' Transaktionen</em></div><div class="metric"><small>Slippage-Bewertung</small><strong>NICHT VERFÜGBAR</strong><em>Keine historische Pre-Trade-DEX-Quote vorhanden</em></div></div>'+   '<p class="muted" style="font-size:11px">'+esc(data.note||"")+'</p>'+
    (performanceNextCursor?'<button type="button" id="performanceNextPageButton" style="margin-top:10px;background:#263a56;color:var(--text)">Ältere Transaktionen laden</button>':'<p class="muted" style="font-size:11px">Keine weitere Seite vom RPC gemeldet.</p>');
   const nextButton=document.getElementById("performanceNextPageButton");
   if(nextButton)nextButton.addEventListener("click",()=>inspectPerformance(performanceNextCursor));
