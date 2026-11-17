@@ -36,7 +36,7 @@ export function aggregatePerformancePages(pages = []) {
     const exactMode = rawMeta.every(Boolean) && rawMeta.every(x => x.decimals === rawMeta[0].decimals);
     const decimals = exactMode ? rawMeta[0].decimals : null;
     const lots = [];
-    let realized = 0, matchedAmount = 0, closedLots = 0, winningTrades = 0, losingTrades = 0, breakevenTrades = 0;
+    let realized = 0, matchedAmount = 0, matchedRawAmount = 0n, closedLots = 0, winningTrades = 0, losingTrades = 0, breakevenTrades = 0;
     let partialClosedTrades = 0, unmatchedEvents = 0, grossProfit = 0, grossLoss = 0, holdingDays = 0;
 
     for (let eventIndex = 0; eventIndex < events.length; eventIndex++) {
@@ -60,6 +60,7 @@ export function aggregatePerformancePages(pages = []) {
         const lot = lots[0];
         const quantityRaw = exactMode ? (remainingRaw < lot.raw ? remainingRaw : lot.raw) : null;
         const quantity = exactMode ? rawToUi(quantityRaw, decimals) : Math.min(remaining, lot.amount);
+        if (exactMode) matchedRawAmount += quantityRaw;
         if (lot.price == null || !Number.isFinite(event.priceUsd)) {
           unmatchedEvents++;
           tradeComplete = false;
@@ -99,7 +100,8 @@ export function aggregatePerformancePages(pages = []) {
       mint, buys: events.filter(e => e.side === "BUY").length,
       sells: events.filter(e => e.side === "SELL").length,
       estimatedRealizedPnlUsd: matchedAmount ? round(realized) : null,
-      matchedTokenAmount: round(matchedAmount, exactMode ? Math.min(decimals, 18) : 8), closedLots,
+      matchedTokenAmount: round(matchedAmount, exactMode ? Math.min(decimals, 18) : 8),
+      matchedRawAmount: exactMode ? matchedRawAmount.toString() : null, closedLots,
       closedTrades, winningTrades, losingTrades, breakevenTrades, partialClosedTrades,
       profitableClosedLots: winningTrades, losingClosedLots: losingTrades,
       winRateClosedLots: closedTrades ? winningTrades / closedTrades : null,
