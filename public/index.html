@@ -372,6 +372,41 @@ button:not(:disabled):hover{box-shadow:0 0 18px rgba(168,198,108,.17)}
  main#main-content>.mainnav .navtab{flex:1;width:auto;text-align:center}
 }
 
+
+/* Mobile command deck: visibly distinct compact operations console */
+@media(max-width:760px){
+ body{background:radial-gradient(ellipse at 50% -12%,#29351b 0,transparent 48%),#080c08}
+ header{padding:13px 15px;border-bottom:1px solid #465337;background:#090e09f5}
+ header .brand{font:800 12px/1.2 "Liberation Mono",monospace;letter-spacing:.09em}
+ header .status{font:700 9px "Liberation Mono",monospace;border-color:#56673b;background:#182013;color:var(--green)}
+ main#main-content{padding:20px 13px 42px}
+ main#main-content>.eyebrow{font:700 10px "Liberation Mono",monospace;letter-spacing:.2em;color:#b5cf7c}
+ main#main-content>h1{font:800 clamp(27px,8vw,35px)/1.02 "Liberation Mono",monospace;letter-spacing:-.075em;margin:9px 0 10px}
+ main#main-content>.sub{font-size:12px;line-height:1.55;color:#aab39a;margin:0 0 18px;max-width:42ch}
+ main#main-content>.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ main#main-content>.grid>.metric{position:relative;min-height:91px;padding:12px 11px 10px;border-radius:7px;border-color:#3c4930;background:linear-gradient(145deg,#1b2515,#0e140d);overflow:hidden}
+ main#main-content>.grid>.metric:before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:#8fa85a}
+ main#main-content>.grid>.metric small{font:700 9px "Liberation Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:#a6b28e}
+ main#main-content>.grid>.metric strong{font:800 22px "Liberation Mono",monospace;margin-top:8px;color:#e7efd9}
+ main#main-content>.grid>.metric em{font:10px "Liberation Mono",monospace;color:#b6c58e}
+ main#main-content>.mainnav{position:sticky;top:54px;z-index:8;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:7px;margin:15px -2px 7px;background:#0a100af2;border:1px solid #465337;border-radius:8px;box-shadow:0 8px 22px #0009;backdrop-filter:blur(14px)}
+ main#main-content>.mainnav .navtab{min-width:0;flex:none;padding:10px 3px 9px;border:1px solid #303b27;border-radius:5px;background:#131b10;color:#aab39a;font:700 10px "Liberation Mono",monospace;text-transform:uppercase;letter-spacing:-.025em}
+ main#main-content>.mainnav .navtab:before{content:"";display:block;width:5px;height:5px;margin:0 auto 5px;border:1px solid currentColor;border-radius:50%}
+ main#main-content>.mainnav .navtab.active{color:#d7f0a4;background:linear-gradient(180deg,#29391d,#182313);border-color:#8da85a;box-shadow:inset 0 -2px #a8c66c,0 0 14px #a8c66c22}
+ main#main-content>section[data-view]{margin-top:17px}
+ main#main-content>section[data-view] .sectionhead{align-items:flex-start;border-bottom:1px solid #3b472f;padding-bottom:9px}
+ main#main-content>section[data-view] .sectionhead h2{font:700 13px "Liberation Mono",monospace;letter-spacing:.015em;text-transform:uppercase}
+ main#main-content>section[data-view] .tag{font:700 9px "Liberation Mono",monospace;border-radius:4px}
+ main#main-content>section[data-view] .panel{border-radius:7px;border-color:#39452d;background:linear-gradient(145deg,#172014,#0d130c);padding:12px}
+ main#main-content>section[data-view] .modules{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ main#main-content>section[data-view] .module{min-height:115px}
+ main#main-content>footer{font:10px "Liberation Mono",monospace;color:#7f8b6c}
+}
+@media(max-width:380px){
+ main#main-content>.mainnav .navtab{font-size:9px;padding-left:1px;padding-right:1px}
+ main#main-content>.grid>.metric strong{font-size:19px}
+}
+
 </style></head><body>
 <a class="skip-link" href="#main-content">Zum Inhalt springen</a><header><div class="brand">SMART MONEY <span>INTELLIGENCE</span></div><div class="status" id="connection">● API WIRD GEPRÜFT</div></header>
 <main id="main-content" tabindex="-1"><div class="eyebrow">Solana intelligence terminal</div><h1>Read the flow.<br>Understand the market.</h1><p class="sub">Analyse-Terminal für Solana-Meme-Coins. Marktaktivität und Wallet-Bewegungen mit klarer Kennzeichnung der Datenqualität.</p>
