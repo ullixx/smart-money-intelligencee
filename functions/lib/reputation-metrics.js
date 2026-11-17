@@ -1,5 +1,16 @@
 const round = value => Number.isFinite(value) ? Number(value.toFixed(8)) : null;
 
+function parseRawAmount(event) {
+  if (!/^\\d+$/.test(String(event?.rawAmount ?? ""))) return null;
+  if (!Number.isInteger(event?.decimals) || event.decimals < 0 || event.decimals > 255) return null;
+  try { return { raw: BigInt(String(event.rawAmount)), decimals: event.decimals }; }
+  catch { return null; }
+}
+
+function rawToUi(raw, decimals) {
+  return Number(raw) / (10 ** decimals);
+}
+
 export function aggregatePerformancePages(pages = []) {
   const eventsByKey = new Map();
   for (const page of Array.isArray(pages) ? pages : []) {
@@ -21,22 +32,34 @@ export function aggregatePerformancePages(pages = []) {
   const tokenResults = [];
   for (const [mint, events] of byMint) {
     events.sort((a, b) => a.time - b.time || String(a.signature).localeCompare(String(b.signature)));
+    const rawMeta = events.map(parseRawAmount);
+    const exactMode = rawMeta.every(Boolean) && rawMeta.every(x => x.decimals === rawMeta[0].decimals);
+    const decimals = exactMode ? rawMeta[0].decimals : null;
     const lots = [];
     let realized = 0, matchedAmount = 0, closedLots = 0, winningTrades = 0, losingTrades = 0, breakevenTrades = 0;
     let partialClosedTrades = 0, unmatchedEvents = 0, grossProfit = 0, grossLoss = 0, holdingDays = 0;
 
-    for (const event of events) {
+    for (let eventIndex = 0; eventIndex < events.length; eventIndex++) {
+      const event = events[eventIndex];
       const amount = Number(event.amount);
       if (!Number.isFinite(amount) || amount <= 0) { unmatchedEvents++; continue; }
+      const eventRaw = exactMode ? rawMeta[eventIndex].raw : null;
       if (event.side === "BUY") {
-        lots.push({ amount, price: Number.isFinite(event.priceUsd) ? event.priceUsd : null, time: event.time });
+        lots.push(exactMode
+          ? { raw: eventRaw, amount: rawToUi(eventRaw, decimals), price: Number.isFinite(event.priceUsd) ? event.priceUsd : null, time: event.time }
+          : { amount, price: Number.isFinite(event.priceUsd) ? event.priceUsd : null, time: event.time });
         if (!Number.isFinite(event.priceUsd)) unmatchedEvents++;
         continue;
       }
 
-      let remaining = amount, tradePnl = 0, tradeMatched = 0, tradeComplete = true, tradeHoldingWeighted = 0;
-      while (remaining > 1e-12 && lots.length) {
-        const lot = lots[0], quantity = Math.min(remaining, lot.amount);
+      let remainingRaw = exactMode ? eventRaw : null;
+      let remaining = exactMode ? 0 : amount;
+      let tradePnl = 0, tradeMatched = 0, tradeComplete = true, tradeHoldingWeighted = 0;
+      const hasRemaining = () => exactMode ? remainingRaw > 0n : remaining > 1e-12;
+      while (hasRemaining() && lots.length) {
+        const lot = lots[0];
+        const quantityRaw = exactMode ? (remainingRaw < lot.raw ? remainingRaw : lot.raw) : null;
+        const quantity = exactMode ? rawToUi(quantityRaw, decimals) : Math.min(remaining, lot.amount);
         if (lot.price == null || !Number.isFinite(event.priceUsd)) {
           unmatchedEvents++;
           tradeComplete = false;
@@ -49,11 +72,18 @@ export function aggregatePerformancePages(pages = []) {
           closedLots++;
           tradeHoldingWeighted += Math.max(0, event.time - lot.time) * quantity;
         }
-        remaining -= quantity;
-        lot.amount -= quantity;
-        if (lot.amount <= 1e-12) lots.shift();
+        if (exactMode) {
+          remainingRaw -= quantityRaw;
+          lot.raw -= quantityRaw;
+          lot.amount = rawToUi(lot.raw, decimals);
+          if (lot.raw === 0n) lots.shift();
+        } else {
+          remaining -= quantity;
+          lot.amount -= quantity;
+          if (lot.amount <= 1e-12) lots.shift();
+        }
       }
-      if (remaining > 1e-12) { unmatchedEvents++; tradeComplete = false; }
+      if (hasRemaining()) { unmatchedEvents++; tradeComplete = false; }
       if (tradeMatched > 0) {
         if (tradeComplete) {
           if (tradePnl > 0) { winningTrades++; grossProfit += tradePnl; }
@@ -80,6 +110,8 @@ export function aggregatePerformancePages(pages = []) {
       winRateClosedTrades: closedTrades ? winningTrades / closedTrades : null,
       averageHoldingDays: closedTrades ? holdingDays / closedTrades : null,
       openLots: lots.length, unmatchedEvents,
+      quantityPrecision: exactMode ? "RAW_BIGINT" : "NUMBER_FALLBACK",
+      decimals: exactMode ? decimals : null,
       pricedEvents: events.filter(e => Number.isFinite(e.priceUsd)).length,
       totalEvents: events.length,
       status: events.every(e => Number.isFinite(e.priceUsd)) ? "HISTORICAL" : "PARTIAL"
