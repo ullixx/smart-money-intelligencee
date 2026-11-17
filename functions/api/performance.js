@@ -4,6 +4,7 @@ import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 import { parseHistoryWindow, buildHistoryPagination } from "../lib/history-pagination.js";
 import { selectPriceResolution, nearestCandle, deriveUsdcExecutionPrice, SOLANA_USDC_MINT } from "../lib/price-resolution.js";
 import { aggregatePerformancePages } from "../lib/reputation-metrics.js";
+import { aggregateWalletTokenBalanceChanges } from "../lib/token-balance-deltas.js";
 const GT="https://api.geckoterminal.com/api/v2";
 const headers={"accept":"application/json;version=20230203"};
 const json=async(url,opts={})=>{const r=await fetch(url,{...opts,signal:opts.signal??AbortSignal.timeout(10000)});if(!r.ok)throw new Error("HTTP "+r.status+" bei "+url);return r.json();};
@@ -47,10 +48,7 @@ export async function onRequestGet({request,env}){
      const loadedKeys=[...(tx.meta?.loadedAddresses?.writable||[]),...(tx.meta?.loadedAddresses?.readonly||[])];
      const keys=[...staticKeys,...loadedKeys],ix=keys.findIndex(k=>(typeof k==="string"?k:k?.pubkey)===address);
      const sol=ix>=0?((tx.meta.postBalances?.[ix]||0)-(tx.meta.preBalances?.[ix]||0))/1e9:null;
-     const changes=new Map();
-     for(const b of tx.meta.preTokenBalances||[])if(b.owner===address)changes.set(b.mint,{mint:b.mint,amount:-Number(b.uiTokenAmount?.uiAmountString||0)});
-     for(const b of tx.meta.postTokenBalances||[])if(b.owner===address){const v=changes.get(b.mint)||{mint:b.mint,amount:0};v.amount+=Number(b.uiTokenAmount?.uiAmountString||0);changes.set(b.mint,v);}
-     const delta=[...changes.values()].filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
+     const delta=aggregateWalletTokenBalanceChanges(tx.meta.preTokenBalances,tx.meta.postTokenBalances,address);
      const evidence=decodeSwapEvidence(tx,{wallet:address,solDelta:sol,tokenChanges:delta});
      const confirmedLegMints=new Set((evidence.walletTokenLegs||[]).filter(x=>x.side==="IN"||x.side==="OUT").map(x=>x.mint).filter(Boolean));
      const sent=delta.filter(x=>x.amount<0&&confirmedLegMints.has(x.mint)),received=delta.filter(x=>x.amount>0&&confirmedLegMints.has(x.mint));
