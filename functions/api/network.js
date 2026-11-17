@@ -1,6 +1,7 @@
 import { decodeSwapEvidence } from "../lib/swap-decoder.js";
 import { isValidSolanaAddress } from "../lib/solana-address.js";
 import { createSolanaRpc } from "../lib/solana-rpc.js";
+import { aggregateWalletTokenBalanceChanges } from "../lib/token-balance-deltas.js";
 export async function onRequestGet({request,env}) {
  const rpc=createSolanaRpc(env);let activeProvider="Not yet selected";
  const u=new URL(request.url),wallets=[...new Set((u.searchParams.get("wallets")||"").split(",").map(x=>x.trim()).filter(Boolean))].slice(0,5);
@@ -34,10 +35,9 @@ export async function onRequestGet({request,env}) {
     const keyString=k=>typeof k==="string"?k:k?.pubkey;
     const walletIndex=allKeys.findIndex(k=>keyString(k)===wallet);
     const solDelta=walletIndex>=0?((tx.meta.postBalances?.[walletIndex]||0)-(tx.meta.preBalances?.[walletIndex]||0))/1e9:null;
-    const deltas=new Map();
-    for(const b of tx.meta.preTokenBalances||[])if(b.owner===wallet)deltas.set(b.mint,{mint:b.mint,delta:-Number(b.uiTokenAmount?.uiAmountString||0)});
-    for(const b of tx.meta.postTokenBalances||[])if(b.owner===wallet){const v=deltas.get(b.mint)||{mint:b.mint,delta:0};v.delta+=Number(b.uiTokenAmount?.uiAmountString||0);deltas.set(b.mint,v);}
-    const tokenChanges=[...deltas.values()].filter(v=>Number.isFinite(v.delta)&&v.delta!==0).map(v=>({mint:v.mint,amount:v.delta}));
+    const tokenChanges=aggregateWalletTokenBalanceChanges(
+     tx.meta.preTokenBalances,tx.meta.postTokenBalances,wallet
+    );
     const evidence=decodeSwapEvidence(tx,{wallet,solDelta,tokenChanges});
     const incomingMints=new Set((evidence.walletTokenLegs||[]).filter(v=>v.side==="IN"&&v.mint).map(v=>v.mint));
     const positive=tokenChanges.filter(v=>v.amount>0&&incomingMints.has(v.mint));
