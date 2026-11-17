@@ -194,7 +194,7 @@ test("token concentration matrix compares wallet membership and time-window evid
  assert.match(html,/id="concentrationButton"/);
  assert.match(html,/async function runTokenConcentration\(\)/);
  assert.match(html,/\/api\/network\?wallets=/);
- assert.match(html,/item\.wallets\.includes\(w\)/);
+ assert.match(html,/(item\.wallets\|\|\[\])\.includes\(w\)/);
  assert.match(html,/windowMinutes/);
  assert.match(html,/Fehlende Zellen bedeuten fehlende Evidenz/);
  assert.match(html,/Zeitliche Nähe beweist keine Koordination/);
