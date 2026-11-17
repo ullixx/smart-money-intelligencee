@@ -131,6 +131,13 @@ export function aggregatePerformancePages(pages = []) {
   const grossProfit = tokenResults.reduce((n, x) => n + (x.grossProfitUsd || 0), 0);
   const grossLoss = tokenResults.reduce((n, x) => n + (x.grossLossUsd || 0), 0);
   const realizedPnl = tokenResults.reduce((n, x) => n + (x.estimatedRealizedPnlUsd || 0), 0);
+  const feesBySignature = new Map();
+  for (const event of eventsByKey.values()) {
+    if (event.feePaidByWallet === true && event.signature && Number.isFinite(event.feeSol) && event.feeSol >= 0) {
+      if (!feesBySignature.has(event.signature)) feesBySignature.set(event.signature, event.feeSol);
+    }
+  }
+  const walletPaidNetworkFeesSol = [...feesBySignature.values()].reduce((sum, fee) => sum + fee, 0);
   const allPagesHaveMore = (pages || []).some(page => page?.historyPagination?.hasMore);
   return {
     status: "PARTIAL",
@@ -150,6 +157,9 @@ export function aggregatePerformancePages(pages = []) {
       averageWinUsd: winningTrades ? round(grossProfit / winningTrades) : null,
       averageLossUsd: losingTrades ? round(grossLoss / losingTrades) : null,
       averageHoldingDays: closedTrades ? holdingDays / closedTrades : null,
+      walletPaidNetworkFeesSol: round(walletPaidNetworkFeesSol, 9),
+      networkFeeTransactions: feesBySignature.size,
+      networkFeeStatus: feesBySignature.size ? "PARTIAL_USD_NOT_VALUED" : "UNAVAILABLE",
       reputationStatus: closedTrades >= 10 ? "PARTIAL" : "INSUFFICIENT_DATA"
     },
     history: { pagesLoaded: (pages || []).length, hasMore: allPagesHaveMore, scope: "CUMULATIVE_PAGES_LOADED_ONLY" }

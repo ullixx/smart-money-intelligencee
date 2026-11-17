@@ -177,3 +177,17 @@ test("falls back safely when raw token metadata is incomplete or inconsistent", 
   assert.equal(result.tokenResults[0].quantityPrecision, "NUMBER_FALLBACK");
   assert.equal(result.tokenResults[0].estimatedRealizedPnlUsd, 5);
 });
+
+
+test("counts wallet-paid network fees once per transaction across token legs", () => {
+  const result = aggregatePerformancePages([{
+    tokenResults: [
+      { mint: "MintA", events: [{ ...event("swap-shared", "BUY", 100, 10), feeSol: 0.000005, feePaidByWallet: true }] },
+      { mint: "MintB", events: [{ ...event("swap-shared", "SELL", 100, 20), feeSol: 0.000005, feePaidByWallet: true }] },
+      { mint: "MintC", events: [{ ...event("sponsored-swap", "BUY", 110, 10), feeSol: 0.00002, feePaidByWallet: false }] }
+    ]
+  }]);
+  assert.equal(result.summary.walletPaidNetworkFeesSol, 0.000005);
+  assert.equal(result.summary.networkFeeTransactions, 1);
+  assert.equal(result.summary.networkFeeStatus, "PARTIAL_USD_NOT_VALUED");
+});
