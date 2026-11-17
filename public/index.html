@@ -213,7 +213,7 @@ function mergePerformancePages(pages){
  const tokenResults=[];
  for(const [mint,events] of byMint){
   events.sort((a,b)=>a.time-b.time||String(a.signature).localeCompare(String(b.signature)));
-  const rawMeta=events.map(e=>/^\\d+$/.test(String(e.rawAmount??""))&&Number.isInteger(e.decimals)&&e.decimals>=0&&e.decimals<=255?{raw:BigInt(String(e.rawAmount)),decimals:e.decimals}:null);
+  const rawMeta=events.map(e=>/^\d+$/.test(String(e.rawAmount??""))&&Number.isInteger(e.decimals)&&e.decimals>=0&&e.decimals<=255?{raw:BigInt(String(e.rawAmount)),decimals:e.decimals}:null);
   const exactMode=rawMeta.every(Boolean)&&rawMeta.every(x=>x.decimals===rawMeta[0].decimals);
   const decimals=exactMode?rawMeta[0].decimals:null;
   const toUi=raw=>Number(raw)/(10**decimals);
