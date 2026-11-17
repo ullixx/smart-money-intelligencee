@@ -1,4 +1,4 @@
-const round = value => Number.isFinite(value) ? Number(value.toFixed(8)) : null;
+const round = (value, digits = 8) => Number.isFinite(value) ? Number(value.toFixed(digits)) : null;
 
 function parseRawAmount(event) {
   if (!/^\\d+$/.test(String(event?.rawAmount ?? ""))) return null;
@@ -99,7 +99,7 @@ export function aggregatePerformancePages(pages = []) {
       mint, buys: events.filter(e => e.side === "BUY").length,
       sells: events.filter(e => e.side === "SELL").length,
       estimatedRealizedPnlUsd: matchedAmount ? round(realized) : null,
-      matchedTokenAmount: round(matchedAmount), closedLots,
+      matchedTokenAmount: round(matchedAmount, exactMode ? Math.min(decimals, 18) : 8), closedLots,
       closedTrades, winningTrades, losingTrades, breakevenTrades, partialClosedTrades,
       profitableClosedLots: winningTrades, losingClosedLots: losingTrades,
       winRateClosedLots: closedTrades ? winningTrades / closedTrades : null,
