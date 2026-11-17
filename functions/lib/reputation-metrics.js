@@ -157,6 +157,9 @@ export function aggregatePerformancePages(pages = []) {
       averageWinUsd: winningTrades ? round(grossProfit / winningTrades) : null,
       averageLossUsd: losingTrades ? round(grossLoss / losingTrades) : null,
       averageHoldingDays: closedTrades ? holdingDays / closedTrades : null,
+      walletPaidNetworkFeesSol: round(walletPaidNetworkFeesSol, 9),
+      networkFeeTransactions: feesBySignature.size,
+      networkFeeStatus: feesBySignature.size ? "PARTIAL_USD_NOT_VALUED" : "UNAVAILABLE",
       reputationStatus: closedTrades >= 10 ? "PARTIAL" : "INSUFFICIENT_DATA"
     },
     history: { pagesLoaded: (pages || []).length, hasMore: allPagesHaveMore, scope: "CUMULATIVE_PAGES_LOADED_ONLY" }
