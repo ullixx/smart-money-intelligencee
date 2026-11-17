@@ -201,3 +201,17 @@ test("token concentration matrix compares wallet membership and time-window evid
  assert.match(html,/Fehlende Zellen bedeuten fehlende Evidenz/);
  assert.match(html,/Zeitliche Nähe beweist keine Koordination/);
 });
+
+
+test("historical wallet comparison reuses performance FIFO endpoint and exposes coverage and holding time",()=>{
+ const html=readFileSync(new URL("../public/index.html",import.meta.url),"utf8");
+ assert.match(html,/id="walletHistoryButton"/);
+ assert.match(html,/async function runWalletHistoryComparison\(\)/);
+ assert.match(html,/getWallets\(\)\.slice\(0,3\)/);
+ assert.match(html,/\/api\/performance\?address=/);
+ assert.match(html,/&pages=3/);
+ assert.match(html,/averageHoldingDays/);
+ assert.match(html,/estimatedRealizedPnlUsd/);
+ assert.match(html,/transactionsScanned/);
+ assert.match(html,/Nicht bepreiste Events/);
+});
